@@ -1,0 +1,434 @@
+/* xterm.js 终端样式定制 */
+
+/* 终端容器 */
+.xterm {
+  position: relative;
+  user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  border-radius: var(--rounded-lg);
+  overflow: hidden;
+  background: var(--terminal-bg);
+}
+
+.xterm.focus,
+.xterm:focus {
+  outline: none;
+}
+
+/* 终端屏幕 */
+.xterm .xterm-screen {
+  position: relative;
+  background: var(--terminal-bg);
+}
+
+/* 终端视口 */
+.xterm .xterm-viewport {
+  background-color: var(--terminal-bg);
+  overflow-y: scroll;
+  cursor: default;
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 终端文本层 */
+.xterm .xterm-text-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  color: var(--terminal-fg);
+}
+
+/* 终端选择层 */
+.xterm .xterm-selection-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.xterm .xterm-selection-layer .xterm-selection {
+  background: var(--terminal-selection);
+  opacity: 0.3;
+  position: absolute;
+}
+
+/* 终端链接层 */
+.xterm .xterm-link-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+}
+
+.xterm .xterm-link-layer a {
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.xterm .xterm-link-layer a:hover {
+  text-decoration: none;
+}
+
+/* 终端光标层 */
+.xterm .xterm-cursor-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.xterm .xterm-cursor-layer .xterm-cursor {
+  background: var(--terminal-cursor);
+  color: var(--terminal-bg);
+  position: absolute;
+}
+
+.xterm .xterm-cursor-layer .xterm-cursor.xterm-cursor-blink {
+  animation: xterm-cursor-blink 1.2s infinite step-end;
+}
+
+.xterm .xterm-cursor-layer .xterm-cursor.xterm-cursor-block {
+  /* 块状光标 */
+}
+
+.xterm .xterm-cursor-layer .xterm-cursor.xterm-cursor-underline {
+  border-bottom: 2px solid var(--terminal-cursor);
+  background: transparent;
+}
+
+.xterm .xterm-cursor-layer .xterm-cursor.xterm-cursor-bar {
+  border-left: 2px solid var(--terminal-cursor);
+  background: transparent;
+}
+
+/* 光标闪烁动画 */
+@keyframes xterm-cursor-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* 终端行 */
+.xterm .xterm-rows {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.xterm .xterm-rows > div {
+  white-space: pre;
+  height: 1.2em;
+  line-height: 1.2em;
+}
+
+/* 终端字符 */
+.xterm .xterm-char {
+  position: relative;
+  display: inline-block;
+}
+
+/* 终端颜色类 */
+.xterm .xterm-color-0 { color: var(--terminal-black); }
+.xterm .xterm-color-1 { color: var(--terminal-red); }
+.xterm .xterm-color-2 { color: var(--terminal-green); }
+.xterm .xterm-color-3 { color: var(--terminal-yellow); }
+.xterm .xterm-color-4 { color: var(--terminal-blue); }
+.xterm .xterm-color-5 { color: var(--terminal-magenta); }
+.xterm .xterm-color-6 { color: var(--terminal-cyan); }
+.xterm .xterm-color-7 { color: var(--terminal-white); }
+.xterm .xterm-color-8 { color: var(--terminal-bright-black); }
+.xterm .xterm-color-9 { color: var(--terminal-bright-red); }
+.xterm .xterm-color-10 { color: var(--terminal-bright-green); }
+.xterm .xterm-color-11 { color: var(--terminal-bright-yellow); }
+.xterm .xterm-color-12 { color: var(--terminal-bright-blue); }
+.xterm .xterm-color-13 { color: var(--terminal-bright-magenta); }
+.xterm .xterm-color-14 { color: var(--terminal-bright-cyan); }
+.xterm .xterm-color-15 { color: var(--terminal-bright-white); }
+
+/* 终端背景颜色类 */
+.xterm .xterm-bg-color-0 { background-color: var(--terminal-black); }
+.xterm .xterm-bg-color-1 { background-color: var(--terminal-red); }
+.xterm .xterm-bg-color-2 { background-color: var(--terminal-green); }
+.xterm .xterm-bg-color-3 { background-color: var(--terminal-yellow); }
+.xterm .xterm-bg-color-4 { background-color: var(--terminal-blue); }
+.xterm .xterm-bg-color-5 { background-color: var(--terminal-magenta); }
+.xterm .xterm-bg-color-6 { background-color: var(--terminal-cyan); }
+.xterm .xterm-bg-color-7 { background-color: var(--terminal-white); }
+.xterm .xterm-bg-color-8 { background-color: var(--terminal-bright-black); }
+.xterm .xterm-bg-color-9 { background-color: var(--terminal-bright-red); }
+.xterm .xterm-bg-color-10 { background-color: var(--terminal-bright-green); }
+.xterm .xterm-bg-color-11 { background-color: var(--terminal-bright-yellow); }
+.xterm .xterm-bg-color-12 { background-color: var(--terminal-bright-blue); }
+.xterm .xterm-bg-color-13 { background-color: var(--terminal-bright-magenta); }
+.xterm .xterm-bg-color-14 { background-color: var(--terminal-bright-cyan); }
+.xterm .xterm-bg-color-15 { background-color: var(--terminal-bright-white); }
+
+/* 终端文本样式 */
+.xterm .xterm-bold {
+  font-weight: bold;
+}
+
+.xterm .xterm-italic {
+  font-style: italic;
+}
+
+.xterm .xterm-underline {
+  text-decoration: underline;
+}
+
+.xterm .xterm-strikethrough {
+  text-decoration: line-through;
+}
+
+.xterm .xterm-dim {
+  opacity: 0.5;
+}
+
+.xterm .xterm-invisible {
+  visibility: hidden;
+}
+
+/* 终端搜索高亮 */
+.xterm .xterm-search-result {
+  background: var(--warning-500);
+  color: var(--warning-900);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.xterm .xterm-search-result.xterm-search-result-active {
+  background: var(--primary);
+  color: white;
+}
+
+/* 终端装饰器 */
+.xterm .xterm-decoration-overview-ruler {
+  position: absolute;
+  top: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 终端辅助功能 */
+.xterm .xterm-accessibility {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* 终端右键菜单 */
+.xterm-context-menu {
+  position: fixed;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.xterm-context-menu-item {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  border-radius: var(--rounded);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  transition: var(--transition-colors);
+}
+
+.xterm-context-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.xterm-context-menu-item.disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.xterm-context-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.xterm-context-menu-divider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: var(--space-2) 0;
+}
+
+/* 终端标签页样式 */
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-bottom: none;
+  border-radius: var(--rounded-md) var(--rounded-md) 0 0;
+  cursor: pointer;
+  transition: var(--transition-colors);
+  position: relative;
+  max-width: 200px;
+}
+
+.terminal-tab:hover {
+  background: var(--bg-tertiary);
+}
+
+.terminal-tab.active {
+  background: var(--bg-primary);
+  border-color: var(--primary);
+}
+
+.terminal-tab-title {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terminal-tab-close {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--rounded);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: var(--transition-colors);
+}
+
+.terminal-tab-close:hover {
+  background: var(--error);
+  color: white;
+}
+
+/* 终端工具栏 */
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.terminal-toolbar-left,
+.terminal-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.terminal-toolbar-button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rounded);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.terminal-toolbar-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.terminal-toolbar-button.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* 终端状态栏 */
+.terminal-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-3);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.terminal-status-left,
+.terminal-status-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.terminal-status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .xterm {
+    font-size: 12px;
+  }
+  
+  .terminal-tab {
+    max-width: 120px;
+    padding: var(--space-1) var(--space-2);
+  }
+  
+  .terminal-toolbar {
+    padding: var(--space-1) var(--space-2);
+  }
+  
+  .terminal-toolbar-button {
+    width: 24px;
+    height: 24px;
+  }
+}

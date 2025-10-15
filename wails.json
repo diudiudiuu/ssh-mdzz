@@ -1,0 +1,80 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "SSH MDZZ",
+  "outputfilename": "ssh-mdzz",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "SSH MDZZ Team",
+    "email": "contact@ssh-mdzz.org"
+  },
+  "info": {
+    "productName": "SSH MDZZ",
+    "productVersion": "1.0.0",
+    "copyright": "© 2025 SSH MDZZ Team. Licensed under GPL-3.0",
+    "comments": "A modern SSH connection manager with built-in terminal and file transfer capabilities."
+  },
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "garbleargs": "",
+  "version": "v2",
+  "build": {
+    "appicon": "build/appicon.png",
+    "delveCMDArgs": "",
+    "compiler": "gc",
+    "wailsjsdir": "",
+    "frontenddir": "frontend",
+    "tags": [],
+    "ldflags": [
+      "-s",
+      "-w"
+    ]
+  },
+  "windows": {
+    "theme": "dark",
+    "customTheme": {
+      "dark": {
+        "TitleBarDefault": "#071428",
+        "TitleBarInactive": "#071428",
+        "TitleText": "#F6B13F",
+        "TitleTextInactive": "#888888",
+        "WindowBackground": "#071428"
+      },
+      "light": {
+        "TitleBarDefault": "#F6F6F6",
+        "TitleBarInactive": "#E0E0E0",
+        "TitleText": "#071428",
+        "TitleTextInactive": "#888888",
+        "WindowBackground": "#FFFFFF"
+      }
+    },
+    "webviewIsTransparent": false,
+    "windowIsTranslucent": false,
+    "disableWindowIcon": false,
+    "disableFramelessWindowDecorations": false,
+    "resizable": true,
+    "minWidth": 800,
+    "minHeight": 600,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "startHidden": false
+  },
+  "macos": {
+    "titleBar": "hiddenInset",
+    "appearance": "NSAppearanceNameDarkAqua",
+    "webviewIsTransparent": true,
+    "windowIsTranslucent": false,
+    "aboutInfo": {
+      "title": "SSH MDZZ",
+      "message": "A modern SSH connection manager\n\nVersion: 1.0.0\nLicense: GPL-3.0\n\n© 2025 SSH MDZZ Team"
+    }
+  },
+  "linux": {
+    "icon": "build/appicon.png",
+    "windowIsTranslucent": false,
+    "webviewGpuPolicy": "always",
+    "ProgramName": "ssh-mdzz"
+  }
+}
