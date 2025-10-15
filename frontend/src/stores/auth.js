@@ -27,16 +27,30 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function checkKeyStatus() {
     try {
+      console.log('正在检查密钥状态...')
+      
       const keySet = await IsKeySet()
       const hasConfigs = await HasConfigs()
+      
+      console.log('密钥状态检查结果:', {
+        keySet,
+        hasConfigs
+      })
+      
+      // 只有当没有设置过密钥时才需要设置
+      // 如果设置过密钥（即使没有配置），也应该进入验证流程
+      const needSetup = !keySet
+      
+      console.log('是否需要设置密钥:', needSetup)
       
       return {
         keySet,
         hasConfigs,
-        needSetup: !keySet && !hasConfigs
+        needSetup
       }
     } catch (error) {
       console.error('检查密钥状态失败:', error)
+      // 出错时默认需要设置
       return {
         keySet: false,
         hasConfigs: false,
@@ -54,14 +68,32 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
+      console.log('正在设置密钥...')
+      
+      // 调用后端设置密钥，后端会生成密钥哈希并存储
+      // 密钥本身不会明文存储到磁盘
       await SetEncryptionKey(key)
+      
+      console.log('后端密钥设置成功')
+      
+      // 验证密钥是否真的设置成功
+      const keySetCheck = await IsKeySet()
+      console.log('密钥设置验证结果:', keySetCheck)
+      
+      if (!keySetCheck) {
+        throw new Error('密钥设置失败：后端验证失败')
+      }
+      
+      // 在内存中保存密钥用于当前会话
       encryptionKey.value = key
       isAuthenticated.value = true
       isInitialized.value = true
+      
+      console.log('密钥设置成功，已在内存中保存')
       return true
     } catch (error) {
       console.error('设置密钥失败:', error)
-      throw new Error('设置密钥失败: ' + error)
+      throw new Error('设置密钥失败: ' + (error.message || error))
     }
   }
 
@@ -99,8 +131,16 @@ export const useAuthStore = defineStore('auth', () => {
    * 清除密钥（退出登录）
    */
   function clearKey() {
+    // 清除内存中的密钥
     encryptionKey.value = null
     isAuthenticated.value = false
+    
+    // 强制垃圾回收（如果浏览器支持）
+    if (window.gc) {
+      window.gc()
+    }
+    
+    console.log('密钥已从内存中清除')
   }
 
   /**

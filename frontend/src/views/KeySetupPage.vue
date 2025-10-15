@@ -1,10 +1,10 @@
 <template>
-  <div class="key-setup">
+  <div class="key-setup-page">
     <div class="setup-container">
       <div class="setup-header">
         <div class="icon">🔐</div>
-        <h1>欢迎使用 SSH MDZZ</h1>
-        <p>首次使用需要设置加密密钥来保护您的连接信息</p>
+        <h1>设置加密密钥</h1>
+        <p>为了保护您的 SSH 连接信息安全，请设置一个加密密钥</p>
       </div>
 
       <n-form
@@ -14,54 +14,37 @@
         size="large"
         label-placement="top"
       >
-        <n-form-item label="设置加密密钥" path="key">
+        <n-form-item path="key" style="margin-bottom: 32px;">
           <n-input
             v-model:value="formData.key"
             type="password"
             placeholder="请输入密钥（至少 6 个字符）"
             show-password-on="click"
+            size="large"
+            style="height: 48px; font-size: 16px;"
             @keyup.enter="handleSetup"
-          >
-            <template #prefix>
-              <n-icon><LockClosedOutline /></n-icon>
-            </template>
-          </n-input>
+          />
         </n-form-item>
 
-        <n-form-item label="确认密钥" path="confirmKey">
+        <n-form-item path="confirmKey" style="margin-bottom: 40px;">
           <n-input
             v-model:value="formData.confirmKey"
             type="password"
             placeholder="请再次输入密钥"
             show-password-on="click"
+            size="large"
+            style="height: 48px; font-size: 16px;"
             @keyup.enter="handleSetup"
-          >
-            <template #prefix>
-              <n-icon><LockClosedOutline /></n-icon>
-            </template>
-          </n-input>
+          />
         </n-form-item>
-
-        <n-alert type="info" :bordered="false" style="margin-bottom: 20px">
-          <template #icon>
-            <n-icon><InformationCircleOutline /></n-icon>
-          </template>
-          <div class="alert-content">
-            <strong>重要提示：</strong>
-            <ul>
-              <li>此密钥将用于加密存储您的 SSH 连接信息</li>
-              <li>密钥仅保存在内存中，不会持久化到磁盘</li>
-              <li>请务必记住此密钥，忘记后将无法访问已保存的连接</li>
-              <li>建议使用强密码（包含字母、数字、特殊字符）</li>
-            </ul>
-          </div>
-        </n-alert>
 
         <n-button
           type="primary"
           block
           size="large"
           :loading="loading"
+          :disabled="!isFormValid"
+          style="height: 48px; font-size: 16px; margin-top: 20px;"
           @click="handleSetup"
         >
           {{ loading ? '设置中...' : '完成设置' }}
@@ -70,6 +53,7 @@
 
       <div class="setup-footer">
         <n-text depth="3">
+          <n-icon><ShieldCheckmarkOutline /></n-icon>
           设置完成后，您就可以开始添加和管理 SSH 连接了
         </n-text>
       </div>
@@ -78,13 +62,15 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useMessage } from 'naive-ui'
-import { LockClosedOutline, InformationCircleOutline } from '@vicons/ionicons5'
+import { 
+  LockClosedOutline, 
+  InformationCircleOutline,
+  ShieldCheckmarkOutline
+} from '@vicons/ionicons5'
 
-const router = useRouter()
 const authStore = useAuthStore()
 const message = useMessage()
 
@@ -120,28 +106,25 @@ const rules = {
         return value === formData.key
       },
       message: '两次输入的密钥不一致',
-      trigger: 'blur'
+      trigger: ['blur', 'input']
     }
   ]
 }
+
+const isFormValid = computed(() => {
+  return formData.key.length >= 6 && 
+         formData.confirmKey === formData.key
+})
 
 async function handleSetup() {
   try {
     await formRef.value?.validate()
     loading.value = true
-
-    console.log('开始设置密钥...')
     await authStore.setKey(formData.key)
-    
-    console.log('密钥设置成功')
     message.success('密钥设置成功！')
-    
-    // 不需要手动跳转，App.vue 会根据认证状态自动切换视图
-    // 等待一下让用户看到成功消息
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    formData.key = ''
+    formData.confirmKey = ''
   } catch (error) {
-    console.error('设置密钥失败:', error)
     message.error(error?.message || '设置密钥失败，请重试')
   } finally {
     loading.value = false
@@ -150,26 +133,21 @@ async function handleSetup() {
 </script>
 
 <style scoped>
-.key-setup {
+.key-setup-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-lg);
-  background: linear-gradient(135deg, var(--bg-primary) 0%, #0a0a0e 100%);
-  position: relative;
-  
-  /* macOS 安全区域适配 */
-  padding-top: max(var(--spacing-lg), var(--safe-area-inset-top));
-  padding-left: max(var(--spacing-lg), var(--safe-area-inset-left));
-  padding-right: max(var(--spacing-lg), var(--safe-area-inset-right));
-  padding-bottom: max(var(--spacing-lg), var(--safe-area-inset-bottom));
-  
-  /* 确保内容不被系统 UI 遮挡 */
+  padding: 40px;
+  background: var(--bg-primary);
+  padding-top: max(40px, var(--safe-area-inset-top));
+  padding-left: max(40px, var(--safe-area-inset-left));
+  padding-right: max(40px, var(--safe-area-inset-right));
+  padding-bottom: max(40px, var(--safe-area-inset-bottom));
   min-height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
 }
 
-.key-setup::before {
+.key-setup-page::before {
   content: '';
   position: absolute;
   top: 0;
@@ -183,15 +161,12 @@ async function handleSetup() {
 
 .setup-container {
   width: 100%;
-  max-width: 520px;
+  max-width: 800px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-2xl) var(--spacing-xl);
+  border-radius: 16px;
+  padding: 60px;
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(20px);
-  position: relative;
-  z-index: 1;
 }
 
 .setup-container::before {
@@ -208,7 +183,7 @@ async function handleSetup() {
 
 .setup-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 60px;
   position: relative;
   z-index: 1;
 }
@@ -222,65 +197,52 @@ async function handleSetup() {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   filter: drop-shadow(0 2px 4px rgba(24, 160, 88, 0.3));
+  animation: pulse 3s ease-in-out infinite;
 }
 
 .setup-header h1 {
-  font-size: var(--font-size-3xl);
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-md);
-  letter-spacing: -0.5px;
-  background: linear-gradient(135deg, var(--text-primary) 0%, rgba(255, 255, 255, 0.8) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  margin-bottom: 16px;
 }
 
 .setup-header p {
-  font-size: var(--font-size-md);
+  font-size: 16px;
   color: var(--text-secondary);
-  line-height: var(--line-height-relaxed);
-  max-width: 400px;
+  line-height: 1.5;
   margin: 0 auto;
 }
 
-.alert-content {
-  position: relative;
-}
 
-.alert-content ul {
-  margin: var(--spacing-sm) 0 0 0;
-  padding-left: var(--spacing-lg);
-  list-style: none;
-}
-
-.alert-content li {
-  margin: var(--spacing-sm) 0;
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-relaxed);
-  position: relative;
-}
-
-.alert-content li::before {
-  content: '•';
-  color: var(--info-color);
-  font-weight: bold;
-  position: absolute;
-  left: -16px;
-}
 
 .setup-footer {
   text-align: center;
   margin-top: var(--spacing-xl);
   padding-top: var(--spacing-lg);
   border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
   position: relative;
   z-index: 1;
 }
 
+.setup-footer .n-icon {
+  color: var(--success-color);
+  font-size: 16px;
+}
+
 /* 表单样式增强 */
 :deep(.n-form-item) {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 32px;
+}
+
+:deep(.n-form-item-blank) {
+  min-height: 24px;
 }
 
 :deep(.n-form-item-label) {
@@ -292,11 +254,13 @@ async function handleSetup() {
 :deep(.n-input) {
   border-radius: var(--radius-md);
   transition: all var(--transition-normal);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
 }
 
 :deep(.n-input:hover) {
   border-color: var(--border-hover);
-  box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.1);
+  box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.08);
 }
 
 :deep(.n-input.n-input--focus) {
@@ -318,7 +282,7 @@ async function handleSetup() {
   box-shadow: 0 4px 12px rgba(24, 160, 88, 0.3);
 }
 
-:deep(.n-button--primary:hover) {
+:deep(.n-button--primary:hover:not(.n-button--disabled)) {
   background: linear-gradient(135deg, var(--primary-color-hover) 0%, #4db87a 100%);
   box-shadow: 0 6px 16px rgba(24, 160, 88, 0.4);
   transform: translateY(-1px);
@@ -327,6 +291,13 @@ async function handleSetup() {
 :deep(.n-button--primary:active) {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(24, 160, 88, 0.3);
+}
+
+:deep(.n-button--disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 :deep(.n-alert) {
@@ -338,7 +309,7 @@ async function handleSetup() {
 
 /* 响应式设计 */
 @media (max-width: 640px) {
-  .key-setup {
+  .key-setup-page {
     padding: var(--spacing-md);
   }
   
@@ -357,15 +328,22 @@ async function handleSetup() {
   .setup-header p {
     font-size: var(--font-size-sm);
   }
+  
+  .password-strength {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-xs);
+  }
+  
+  .strength-label,
+  .strength-text {
+    text-align: center;
+  }
 }
 
 /* 动画增强 */
 .setup-container {
   animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.icon {
-  animation: pulse 3s ease-in-out infinite;
 }
 
 @keyframes fadeInUp {

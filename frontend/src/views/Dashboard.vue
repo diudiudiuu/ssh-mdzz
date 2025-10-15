@@ -1,160 +1,187 @@
 <template>
   <div class="dashboard">
-    <!-- 左侧面板 - 会话管理器和文件浏览器 -->
-    <div class="left-panel">
-
-
-      <!-- 主要内容区域 - 使用 n-split 实现可拖拽调整 -->
-      <n-split
-        direction="horizontal"
-        :default-size="0.5"
-        :min="0.2"
-        :max="0.8"
-        class="panel-content"
-      >
-        <!-- 会话区域 -->
-        <template #1>
-          <div class="session-area" :class="{ collapsed: activeConnection && isConnected && sessionCollapsed }">
-            <!-- 会话标题 -->
-            <div class="section-header">
-              <div class="section-actions">
-                <!-- 添加连接按钮 -->
-                <n-button 
-                  size="small"
-                  color="#0078d4"
-                  @click="showAddConnection = true"
-                >
-                  <template #icon>
-                    <n-icon><AddOutline /></n-icon>
-                  </template>
-                </n-button>
-                <!-- 连接后显示的收缩按钮 -->
-                <n-button 
-                  v-if="activeConnection && isConnected"
-                  size="small"
-                  color="#666"
-                  @click="toggleSessionCollapse"
-                >
-                  <template #icon>
-                    <n-icon>
-                      <ChevronDownOutline v-if="sessionCollapsed" />
-                      <ChevronUpOutline v-else />
-                    </n-icon>
-                  </template>
-                </n-button>
-              </div>
-            </div>
-            
-            <!-- 会话列表 -->
-            <div v-show="!sessionCollapsed || !(activeConnection && isConnected)" class="connections">
-              <div 
-                v-for="config in connectionStore.connections" 
-                :key="config.id"
-                class="connection-item"
-                :class="{ 
-                  active: activeConnection?.id === config.id,
-                  connected: getConnectionStatus(config.id) === 'connected'
-                }"
-                @dblclick="connectToSSH(config)"
-                @contextmenu="handleRightClick($event, config)"
-              >
-                <div class="connection-icon">
-                  <n-icon 
-                    size="16" 
-                    :color="getConnectionStatus(config.id) === 'connected' ? '#18a058' : '#666'"
-                  >
-                    <RadioButtonOnOutline v-if="getConnectionStatus(config.id) === 'connected'" />
-                    <RadioButtonOffOutline v-else />
-                  </n-icon>
+    <!-- 左右两栏布局 -->
+    <n-split
+      direction="horizontal"
+      :default-size="0.4"
+      :min="0.2"
+      :max="0.6"
+      class="main-split"
+    >
+      <!-- 左侧面板：会话和文件 -->
+      <template #1>
+        <div class="left-panel">
+          <n-split
+            direction="vertical"
+            :default-size="sessionCollapsed ? 0.2 : (showFiles ? 0.5 : 1)"
+            :min="0.1"
+            :max="0.9"
+            class="left-split"
+          >
+            <!-- 会话区域 -->
+            <template #1>
+              <div class="session-panel">
+                <div class="panel-header">
+                  <span class="panel-title">会话</span>
+                  <div class="panel-actions">
+                    <n-button size="tiny" @click="showAddConnection = true">
+                      <template #icon>
+                        <n-icon><AddOutline /></n-icon>
+                      </template>
+                    </n-button>
+                    <n-button 
+                      v-if="activeConnection && isConnected"
+                      size="tiny"
+                      @click="toggleSessionCollapse"
+                    >
+                      <template #icon>
+                        <n-icon>
+                          <ChevronDownOutline v-if="sessionCollapsed" />
+                          <ChevronUpOutline v-else />
+                        </n-icon>
+                      </template>
+                    </n-button>
+                  </div>
                 </div>
-                <div class="connection-info">
-                  <div class="connection-name">{{ config.name }}</div>
-                  <div class="connection-details">
-                    {{ config.username }}@{{ config.host }}:{{ config.port }}
+                
+                <div class="panel-content">
+                  <!-- 会话列表 -->
+                  <div v-show="!sessionCollapsed" class="connections">
+                    <div 
+                      v-for="config in connectionStore.connections" 
+                      :key="config.id"
+                      class="connection-item"
+                      :class="{ 
+                        active: activeConnection?.id === config.id,
+                        connected: getConnectionStatus(config.id) === 'connected'
+                      }"
+                      @dblclick="connectToSSH(config)"
+                      @contextmenu="handleRightClick($event, config)"
+                    >
+                      <div class="connection-icon">
+                        <n-icon 
+                          size="16" 
+                          :color="getConnectionStatus(config.id) === 'connected' ? '#18a058' : '#666'"
+                        >
+                          <RadioButtonOnOutline v-if="getConnectionStatus(config.id) === 'connected'" />
+                          <RadioButtonOffOutline v-else />
+                        </n-icon>
+                      </div>
+                      <div class="connection-info">
+                        <div class="connection-name">{{ config.name }}</div>
+                        <div class="connection-details">
+                          {{ config.username }}@{{ config.host }}:{{ config.port }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 收缩后的活动连接显示 -->
+                  <div v-if="sessionCollapsed && activeConnection && isConnected" class="active-connection-mini">
+                    <div class="mini-connection">
+                      <n-icon size="16" color="#18a058">
+                        <RadioButtonOnOutline />
+                      </n-icon>
+                      <span class="mini-name">{{ activeConnection.name }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </template>
 
-            <!-- 收缩后的活动连接显示 -->
-            <div v-if="sessionCollapsed && activeConnection && isConnected" class="active-connection-mini">
-              <div class="mini-connection">
-                <n-icon size="16" color="#18a058">
-                  <RadioButtonOnOutline />
-                </n-icon>
-                <span class="mini-name">{{ activeConnection.name }}</span>
+            <!-- 文件浏览器区域 -->
+            <template #2>
+              <div v-if="showFiles" class="file-panel">
+                <div class="panel-header">
+                  <span class="panel-title">文件</span>
+                  <div class="panel-actions" v-if="activeConnection && isConnected">
+                    <n-button size="tiny" @click="refreshFiles">
+                      <template #icon>
+                        <n-icon><RefreshOutline /></n-icon>
+                      </template>
+                    </n-button>
+                    <n-button size="tiny" @click="showCreateFolderDialog = true">
+                      <template #icon>
+                        <n-icon><FolderOutline /></n-icon>
+                      </template>
+                    </n-button>
+                  </div>
+                </div>
+                
+                <div class="panel-content">
+                  <div v-if="activeConnection && isConnected">
+                    <FileBrowser 
+                      :key="`${activeConnection.id}-${currentPath}`"
+                      :config-id="activeConnection.id"
+                      :initial-path="currentPath"
+                      @path-change="handlePathChange"
+                    />
+                  </div>
+                  <div v-else class="file-placeholder">
+                    <n-empty description="请先连接到服务器">
+                      <template #icon>
+                        <n-icon size="48" color="#666">
+                          <FolderOutline />
+                        </n-icon>
+                      </template>
+                    </n-empty>
+                  </div>
+                </div>
               </div>
+            </template>
+          </n-split>
+        </div>
+      </template>
+
+      <!-- 右侧面板：终端 -->
+      <template #2>
+        <div class="terminal-panel">
+          <div class="panel-header">
+            <span class="panel-title">终端</span>
+            <div class="panel-actions" v-if="activeConnection && isConnected">
+              <n-button size="tiny" @click="clearTerminal">
+                <template #icon>
+                  <n-icon><CloseOutline /></n-icon>
+                </template>
+              </n-button>
+              <n-button size="tiny" @click="reconnectSSH">
+                <template #icon>
+                  <n-icon><RefreshOutline /></n-icon>
+                </template>
+              </n-button>
+              <n-button size="tiny" type="error" @click="deleteConnection">
+                <template #icon>
+                  <n-icon><TrashOutline /></n-icon>
+                </template>
+              </n-button>
             </div>
           </div>
-        </template>
-
-        <!-- 文件浏览器区域 -->
-        <template #2>
-          <div v-if="activeConnection && isConnected" class="file-area">
-            <div class="section-header">
-              <div class="section-actions">
-                <!-- 刷新按钮 -->
-                <n-button 
-                  size="small"
-                  color="#0078d4"
-                  @click="refreshFiles"
-                >
-                  <template #icon>
-                    <n-icon><RefreshOutline /></n-icon>
-                  </template>
-                </n-button>
-                
-                <!-- 新建文件夹按钮 -->
-                <n-button 
-                  size="small"
-                  color="#f0a020"
-                  @click="showCreateFolderDialog = true"
-                >
-                  <template #icon>
-                    <n-icon><FolderOutline /></n-icon>
-                  </template>
-                </n-button>
-              </div>
+          
+          <div class="panel-content">
+            <div v-if="activeConnection && isConnected" class="terminal-container">
+              <SSHTerminal :config-id="activeConnection.id" />
             </div>
             
-            <div class="file-browser-container">
-              <FileBrowser 
-                :config-id="activeConnection.id"
-                :initial-path="currentPath"
-                @path-change="handlePathChange"
-              />
+            <!-- 默认欢迎页 -->
+            <div v-else class="welcome-screen">
+              <div class="welcome-content">
+                <n-icon size="64" color="#666">
+                  <TerminalOutline />
+                </n-icon>
+                <h2>SSH 管理工具</h2>
+                <p>双击左侧的连接开始使用</p>
+                
+                <div class="quick-actions">
+                  <n-button @click="showAddConnection = true">
+                    添加新连接
+                  </n-button>
+                </div>
+              </div>
             </div>
           </div>
-        </template>
-      </n-split>
-    </div>
-
-    <!-- 右侧主内容区 -->
-    <div class="right-panel">
-      <!-- 直接显示终端，无标签页 -->
-      <div v-if="activeConnection && isConnected" class="terminal-container">
-        <SSHTerminal :config-id="activeConnection.id" />
-      </div>
-      
-      <!-- 默认欢迎页 -->
-      <div v-else class="welcome-screen">
-        <div class="welcome-content">
-          <n-icon size="64" color="#666">
-            <TerminalOutline />
-          </n-icon>
-          <h2>SSH 管理工具</h2>
-          <p>双击左侧的连接开始使用</p>
-          
-          <div class="quick-actions">
-            <n-button 
-              @click="showAddConnection = true"
-            >
-              添加新连接
-            </n-button>
-          </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </n-split>
     
     <!-- 添加连接对话框 -->
     <ConnectionDialog 
@@ -165,9 +192,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { 
   AddOutline,
   RefreshOutline,
@@ -177,7 +204,9 @@ import {
   RadioButtonOffOutline,
   FolderOutline,
   ChevronDownOutline,
-  ChevronUpOutline
+  ChevronUpOutline,
+  TrashOutline,
+  CloseOutline
 } from '@vicons/ionicons5'
 
 import FileBrowser from '@/components/file/FileBrowser.vue'
@@ -186,14 +215,14 @@ import ConnectionDialog from '@/components/connection/ConnectionDialog.vue'
 
 const connectionStore = useConnectionStore()
 const message = useMessage()
+const dialog = useDialog()
 
 const activeConnection = ref(null)
 const currentPath = ref('/')
 const showAddConnection = ref(false)
 const sessionCollapsed = ref(false)
 const showCreateFolderDialog = ref(false)
-const sessionWidth = ref(175) // 默认宽度
-const isResizing = ref(false)
+const showFiles = ref(false)
 
 const isConnected = computed(() => {
   if (!activeConnection.value || !connectionStore.activeSessions) return false
@@ -218,8 +247,34 @@ async function connectToSSH(config) {
     if (!isConnected.value) {
       await connectionStore.createSession(config.id)
       message.success(`已连接到 ${config.name}`)
-      // 连接成功后自动收缩会话列表
+      
+      // 手动刷新活动会话列表
+      await connectionStore.loadActiveSessions()
+      
+      // 等待一下让会话状态更新
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // 连接成功后自动收缩会话列表，展开文件列表
       sessionCollapsed.value = true
+      showFiles.value = true
+      
+      // 获取用户主目录作为初始路径
+      try {
+        const homeDir = await window.go.main.App.GetRemoteHome(config.id)
+        currentPath.value = homeDir || '/'
+      } catch (error) {
+        console.error('获取主目录失败:', error)
+        currentPath.value = '/'
+      }
+      
+      console.log('连接成功，状态:', {
+        activeConnection: activeConnection.value?.name,
+        isConnected: isConnected.value,
+        showFiles: showFiles.value,
+        sessionCollapsed: sessionCollapsed.value,
+        currentPath: currentPath.value,
+        activeSessions: connectionStore.activeSessions
+      })
     }
     
   } catch (error) {
@@ -238,8 +293,13 @@ function toggleSessionCollapse() {
 // 右键菜单
 function handleRightClick(e, config) {
   e.preventDefault()
-  // TODO: 实现右键菜单
-  message.info('右键菜单功能开发中')
+  showConnectionContextMenu(e, config)
+}
+
+// 显示连接右键菜单
+function showConnectionContextMenu(e, config) {
+  // 使用 Naive UI 的 dropdown 组件显示右键菜单
+  // 这里可以添加编辑、删除等选项
 }
 
 // 处理路径变化
@@ -253,29 +313,69 @@ function refreshFiles() {
   // 这里可以通过事件或者重新加载组件来实现
 }
 
-// 开始拖拽调整宽度
-function startResize(e) {
-  isResizing.value = true
-  const startX = e.clientX
-  const startWidth = sessionWidth.value
-  
-  function handleMouseMove(e) {
-    if (!isResizing.value) return
-    
-    const deltaX = e.clientX - startX
-    const newWidth = Math.max(100, Math.min(300, startWidth + deltaX))
-    sessionWidth.value = newWidth
-  }
-  
-  function handleMouseUp() {
-    isResizing.value = false
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
-  }
-  
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
+// 清除终端
+function clearTerminal() {
+  // 发送清屏命令到终端
+  // 这里需要与 SSHTerminal 组件通信
+  message.info('清除终端')
 }
+
+// 重连 SSH
+async function reconnectSSH() {
+  if (!activeConnection.value) return
+  
+  try {
+    // 先关闭当前连接
+    await connectionStore.closeSession(activeConnection.value.id)
+    
+    // 等待一下
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // 重新连接
+    await connectionStore.createSession(activeConnection.value.id)
+    message.success('重连成功')
+  } catch (error) {
+    console.error('重连失败:', error)
+    message.error(`重连失败: ${error.message}`)
+  }
+}
+
+// 删除连接
+async function deleteConnection() {
+  if (!activeConnection.value) return
+  
+  // 显示确认对话框
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除连接 "${activeConnection.value.name}" 吗？此操作不可撤销。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const connectionId = activeConnection.value.id
+        
+        // 先断开连接
+        if (isConnected.value) {
+          await connectionStore.closeSession(connectionId)
+        }
+        
+        // 删除连接配置
+        await connectionStore.deleteConnection(connectionId)
+        message.success('连接已删除')
+        
+        // 重置状态
+        sessionCollapsed.value = false
+        showFiles.value = false
+        activeConnection.value = null
+      } catch (error) {
+        console.error('删除连接失败:', error)
+        message.error(`删除连接失败: ${error.message}`)
+      }
+    }
+  })
+}
+
+
 
 // 处理连接添加成功
 function handleConnectionAdded() {
@@ -285,132 +385,142 @@ function handleConnectionAdded() {
 onMounted(() => {
   // 加载连接列表
   connectionStore.loadConnections()
+  
+  // 加载活动会话
+  connectionStore.loadActiveSessions()
+  
+  // 启动定期刷新活动会话
+  const stopRefresh = connectionStore.startSessionRefresh()
+  
+  // 组件卸载时停止刷新
+  onUnmounted(() => {
+    stopRefresh()
+  })
 })
 </script>
 
 <style scoped>
 .dashboard {
-  display: flex;
   height: 100vh;
-  background: #fff;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+  padding-bottom: var(--safe-area-inset-bottom);
+  min-height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+}
+
+.main-split,
+.left-split {
+  height: 100%;
 }
 
 .left-panel {
-  width: 350px;
-  border-right: 1px solid #ddd;
+  height: 100%;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+}
+
+.session-panel,
+.file-panel,
+.terminal-panel {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
+.file-panel {
+  border-top: 1px solid var(--border-color);
 }
 
-
-
-.panel-content {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-.session-area {
-  border-right: 1px solid #ddd;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  transition: width 0.3s ease;
-  flex-shrink: 0;
-}
-
-.session-area.collapsed {
-  width: 120px !important;
-}
-
-.resize-handle {
-  width: 4px;
-  background: #ddd;
-  cursor: col-resize;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-
-.resize-handle:hover {
-  background: #0078d4;
-}
-
-.file-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-}
-
-.section-header {
+.panel-header {
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid #ddd;
-  background: #e8e8e8;
+  padding: 0 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
+.panel-title {
+  font-size: 12px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.section-actions {
+.panel-actions {
   display: flex;
-  align-items: center;
   gap: 4px;
 }
 
-.section-actions .n-button {
-  color: #0078d4;
+.panel-content {
+  flex: 1;
+  overflow: hidden;
 }
 
-.section-actions .n-button:hover {
-  background: #e6f3ff;
+.file-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .connections {
   flex: 1;
   overflow-y: auto;
-  background: #fff;
-}
-
-.file-browser-container {
-  flex: 1;
-  overflow: hidden;
-  background: #fff;
+  padding: 4px;
 }
 
 .connection-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   cursor: pointer;
-  transition: background-color 0.2s;
-  border-bottom: 1px solid #f0f0f0;
+  transition: all var(--transition-normal);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  margin: 2px var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+.connection-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+  pointer-events: none;
 }
 
 .connection-item:hover {
-  background: #e6f3ff;
+  background: var(--bg-elevated);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.connection-item:hover::before {
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.1) 0%, rgba(24, 160, 88, 0.05) 100%);
 }
 
 .connection-item.active {
-  background: #cce7ff;
-  border-left: 3px solid #0078d4;
+  background: rgba(24, 160, 88, 0.15);
+  border-left: 3px solid var(--primary-color);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-md);
+}
+
+.connection-item.active::before {
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.2) 0%, rgba(24, 160, 88, 0.1) 100%);
 }
 
 .connection-item.connected .connection-icon {
@@ -419,6 +529,19 @@ onMounted(() => {
 
 .connection-icon {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all var(--transition-normal);
+}
+
+.connection-item.connected .connection-icon {
+  background: rgba(24, 160, 88, 0.2);
+  box-shadow: 0 0 8px rgba(24, 160, 88, 0.3);
 }
 
 .connection-info {
@@ -427,40 +550,53 @@ onMounted(() => {
 }
 
 .connection-name {
-  font-weight: 500;
-  color: #333;
-  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-bottom: 2px;
 }
 
 .connection-details {
-  font-size: 11px;
-  color: #666;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-family-mono);
 }
 
 .active-connection-mini {
-  padding: 8px 12px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  position: relative;
+  z-index: 1;
 }
 
 .mini-connection {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: #e6f3ff;
-  border-radius: 4px;
-  border-left: 3px solid #0078d4;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(24, 160, 88, 0.1);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--primary-color);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.mini-connection:hover {
+  background: rgba(24, 160, 88, 0.15);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .mini-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: #333;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -469,6 +605,21 @@ onMounted(() => {
 .terminal-container {
   flex: 1;
   overflow: hidden;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg) 0 0 0;
+  position: relative;
+}
+
+.terminal-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: var(--radius-lg) 0 0 0;
 }
 
 .welcome-screen {
@@ -476,24 +627,73 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+.welcome-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(24, 160, 88, 0.05) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .welcome-content {
   text-align: center;
-  max-width: 400px;
+  max-width: 480px;
+  padding: var(--spacing-xl);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(20px);
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+}
+
+.welcome-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-content .n-icon {
+  margin-bottom: var(--spacing-lg);
+  color: var(--primary-color);
+  filter: drop-shadow(0 2px 8px rgba(24, 160, 88, 0.3));
 }
 
 .welcome-content h2 {
-  margin: 20px 0 10px;
-  color: #333;
-  font-size: 24px;
+  margin: var(--spacing-lg) 0 var(--spacing-md);
+  color: var(--text-primary);
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--text-primary) 0%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .welcome-content p {
-  color: #666;
-  margin-bottom: 30px;
-  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xl);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
 }
 
 .quick-actions {
@@ -501,13 +701,39 @@ onMounted(() => {
   justify-content: center;
 }
 
-/* 连接状态动画 */
+/* 按钮样式增强 */
+:deep(.section-actions .n-button) {
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(10px);
+}
+
+:deep(.section-actions .n-button:hover) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 分割器样式 */
+:deep(.n-split .n-split-bar) {
+  background: var(--border-color);
+  width: 1px;
+  transition: all var(--transition-normal);
+}
+
+:deep(.n-split .n-split-bar:hover) {
+  background: var(--primary-color);
+  width: 2px;
+}
+
+/* 连接状态动画增强 */
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
+    transform: scale(1);
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.7;
+    transform: scale(1.1);
   }
 }
 
@@ -517,15 +743,121 @@ onMounted(() => {
 }
 
 .connections::-webkit-scrollbar-track {
-  background: #f1f3f4;
+  background: transparent;
+  border-radius: var(--radius-sm);
 }
 
 .connections::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-normal);
 }
 
 .connections::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .left-panel {
+    width: 320px;
+  }
+  
+  .session-area.collapsed {
+    width: 120px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    flex-direction: column;
+  }
+  
+  .left-panel {
+    width: 100%;
+    height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .right-panel {
+    flex: 1;
+  }
+  
+  .panel-content {
+    flex-direction: column;
+  }
+  
+  .session-area {
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    height: 100px;
+  }
+  
+  .session-area.collapsed {
+    width: 100% !important;
+    height: 60px !important;
+  }
+  
+  .file-area {
+    height: 100px;
+  }
+  
+  .welcome-content {
+    margin: var(--spacing-md);
+    padding: var(--spacing-lg);
+  }
+  
+  .welcome-content h2 {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+/* 加载和过渡动画 */
+.dashboard {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.connection-item {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.connection-item:nth-child(1) { animation-delay: 0.1s; }
+.connection-item:nth-child(2) { animation-delay: 0.2s; }
+.connection-item:nth-child(3) { animation-delay: 0.3s; }
+.connection-item:nth-child(4) { animation-delay: 0.4s; }
+.connection-item:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 深色主题特定样式 */
+.welcome-content {
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.connection-item.active {
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.mini-connection {
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 </style>

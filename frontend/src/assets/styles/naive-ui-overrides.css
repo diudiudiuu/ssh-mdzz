@@ -1,0 +1,594 @@
+/* Naive UI 全局样式覆盖 */
+
+/* 全局组件样式 */
+.n-config-provider {
+  height: 100%;
+}
+
+/* 按钮组件增强 */
+.n-button {
+  font-weight: 500;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.n-button:not(.n-button--disabled):hover {
+  transform: translateY(-1px);
+}
+
+.n-button:not(.n-button--disabled):active {
+  transform: translateY(0);
+}
+
+/* 输入框组件增强 */
+.n-input {
+  transition: all var(--transition-normal);
+}
+
+.n-input:hover {
+  box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.08);
+}
+
+.n-input.n-input--focus {
+  box-shadow: 0 0 0 3px rgba(24, 160, 88, 0.12);
+}
+
+/* 卡片组件增强 */
+.n-card {
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-normal);
+}
+
+.n-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+}
+
+/* 模态框增强 */
+.n-modal {
+  backdrop-filter: blur(8px);
+}
+
+.n-modal .n-card {
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 抽屉增强 */
+.n-drawer {
+  backdrop-filter: blur(8px);
+}
+
+.n-drawer .n-drawer-content {
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border-color);
+}
+
+/* 下拉菜单增强 */
+.n-dropdown {
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 工具提示增强 */
+.n-tooltip .n-tooltip-content {
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-xs);
+}
+
+/* 通知增强 */
+.n-notification {
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 消息增强 */
+.n-message {
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
+/* 对话框增强 */
+.n-dialog {
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 表格增强 */
+.n-data-table {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.n-data-table .n-data-table-th {
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.n-data-table .n-data-table-td {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.n-data-table .n-data-table-tr:hover .n-data-table-td {
+  background: var(--bg-tertiary);
+}
+
+/* 标签页增强 */
+.n-tabs {
+  background: transparent;
+}
+
+.n-tabs .n-tabs-nav {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.n-tabs .n-tabs-tab {
+  transition: all var(--transition-normal);
+}
+
+.n-tabs .n-tabs-tab:hover {
+  background: var(--bg-tertiary);
+}
+
+.n-tabs .n-tabs-tab.n-tabs-tab--active {
+  background: var(--bg-elevated);
+  border-bottom-color: var(--primary-color);
+}
+
+/* 步骤条增强 */
+.n-steps .n-step {
+  transition: all var(--transition-normal);
+}
+
+.n-steps .n-step .n-step-indicator {
+  border: 2px solid var(--border-color);
+  background: var(--bg-secondary);
+  transition: all var(--transition-normal);
+}
+
+.n-steps .n-step.n-step--finish .n-step-indicator {
+  border-color: var(--success-color);
+  background: var(--success-color);
+}
+
+.n-steps .n-step.n-step--process .n-step-indicator {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+}
+
+/* 进度条增强 */
+.n-progress .n-progress-graph-line-fill {
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-hover) 100%);
+}
+
+.n-progress .n-progress-graph-circle-fill {
+  stroke: var(--primary-color);
+}
+
+/* 滑块增强 */
+.n-slider .n-slider-rail {
+  background: var(--bg-tertiary);
+}
+
+.n-slider .n-slider-fill {
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-hover) 100%);
+}
+
+.n-slider .n-slider-handle {
+  border: 2px solid var(--primary-color);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 开关增强 */
+.n-switch.n-switch--active .n-switch-rail {
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-hover) 100%);
+}
+
+/* 评分增强 */
+.n-rate .n-rate-item {
+  transition: all var(--transition-fast);
+}
+
+.n-rate .n-rate-item:hover {
+  transform: scale(1.1);
+}
+
+/* 时间选择器增强 */
+.n-time-picker,
+.n-date-picker {
+  border-radius: var(--radius-md);
+}
+
+.n-time-picker .n-base-selection,
+.n-date-picker .n-base-selection {
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal);
+}
+
+/* 上传组件增强 */
+.n-upload .n-upload-dragger {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  transition: all var(--transition-normal);
+}
+
+.n-upload .n-upload-dragger:hover {
+  border-color: var(--primary-color);
+  background: rgba(24, 160, 88, 0.05);
+}
+
+/* 树形控件增强 */
+.n-tree {
+  background: transparent;
+}
+
+.n-tree .n-tree-node {
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+}
+
+.n-tree .n-tree-node:hover {
+  background: var(--bg-tertiary);
+}
+
+.n-tree .n-tree-node.n-tree-node--selected {
+  background: rgba(24, 160, 88, 0.1);
+  border: 1px solid rgba(24, 160, 88, 0.3);
+}
+
+/* 穿梭框增强 */
+.n-transfer {
+  background: transparent;
+}
+
+.n-transfer .n-transfer-list {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+/* 级联选择器增强 */
+.n-cascader .n-base-selection {
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal);
+}
+
+/* 颜色选择器增强 */
+.n-color-picker .n-color-picker-trigger {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
+
+.n-color-picker .n-color-picker-trigger:hover {
+  border-color: var(--border-hover);
+}
+
+/* 自动完成增强 */
+.n-auto-complete .n-base-selection {
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal);
+}
+
+/* 提及增强 */
+.n-mention .n-base-selection {
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal);
+}
+
+/* 动态输入增强 */
+.n-dynamic-input .n-dynamic-input-item {
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal);
+}
+
+/* 动态标签增强 */
+.n-dynamic-tags .n-tag {
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+}
+
+.n-dynamic-tags .n-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 标签增强 */
+.n-tag {
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+}
+
+.n-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 徽标增强 */
+.n-badge .n-badge-sup {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 头像增强 */
+.n-avatar {
+  transition: all var(--transition-normal);
+}
+
+.n-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+/* 骨架屏增强 */
+.n-skeleton {
+  border-radius: var(--radius-md);
+}
+
+/* 空状态增强 */
+.n-empty {
+  color: var(--text-secondary);
+}
+
+/* 结果增强 */
+.n-result {
+  background: transparent;
+}
+
+/* 统计数值增强 */
+.n-statistic {
+  background: transparent;
+}
+
+/* 描述列表增强 */
+.n-descriptions {
+  background: transparent;
+}
+
+.n-descriptions .n-descriptions-table-wrapper {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+/* 时间轴增强 */
+.n-timeline .n-timeline-item .n-timeline-item-timeline .n-timeline-item-timeline-line {
+  background: var(--border-color);
+}
+
+.n-timeline .n-timeline-item .n-timeline-item-timeline .n-timeline-item-timeline-icon {
+  border: 2px solid var(--primary-color);
+  background: var(--bg-primary);
+}
+
+/* 回到顶部增强 */
+.n-back-top {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition-normal);
+}
+
+.n-back-top:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 锚点增强 */
+.n-anchor {
+  background: transparent;
+}
+
+.n-anchor .n-anchor-link {
+  transition: all var(--transition-normal);
+}
+
+.n-anchor .n-anchor-link:hover {
+  color: var(--primary-color-hover);
+}
+
+.n-anchor .n-anchor-link.n-anchor-link--active {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* 面包屑增强 */
+.n-breadcrumb {
+  background: transparent;
+}
+
+.n-breadcrumb .n-breadcrumb-item {
+  transition: all var(--transition-normal);
+}
+
+.n-breadcrumb .n-breadcrumb-item:hover {
+  color: var(--primary-color-hover);
+}
+
+/* 分页增强 */
+.n-pagination {
+  background: transparent;
+}
+
+.n-pagination .n-pagination-item {
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+}
+
+.n-pagination .n-pagination-item:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.n-pagination .n-pagination-item.n-pagination-item--active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* 加载条增强 */
+.n-loading-bar {
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-hover) 100%);
+  box-shadow: 0 0 10px rgba(24, 160, 88, 0.5);
+}
+
+/* 全局加载增强 */
+.n-spin {
+  color: var(--primary-color);
+}
+
+/* macOS 特定样式 */
+@supports (-webkit-app-region: drag) {
+  /* macOS 应用拖拽区域支持 */
+  .n-layout-header {
+    -webkit-app-region: drag;
+  }
+  
+  .n-layout-header .n-button,
+  .n-layout-header .n-input,
+  .n-layout-header .n-select,
+  .n-layout-header [role="button"] {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* macOS 安全区域适配 */
+.n-modal {
+  padding-top: var(--safe-area-inset-top);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+.n-drawer.n-drawer--left .n-drawer-content {
+  padding-left: var(--safe-area-inset-left);
+}
+
+.n-drawer.n-drawer--right .n-drawer-content {
+  padding-right: var(--safe-area-inset-right);
+}
+
+.n-drawer.n-drawer--top .n-drawer-content {
+  padding-top: var(--safe-area-inset-top);
+}
+
+.n-drawer.n-drawer--bottom .n-drawer-content {
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* macOS 毛玻璃效果增强 */
+@supports (-webkit-backdrop-filter: blur(20px)) {
+  .n-modal,
+  .n-drawer,
+  .n-popover,
+  .n-dropdown {
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+  
+  .n-modal .n-card,
+  .n-drawer .n-drawer-content {
+    background: rgba(24, 24, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* macOS 深色模式优化 */
+@media (prefers-color-scheme: dark) {
+  .n-config-provider {
+    color-scheme: dark;
+  }
+  
+  .n-modal .n-card,
+  .n-drawer .n-drawer-content,
+  .n-popover,
+  .n-dropdown {
+    background: rgba(16, 16, 20, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+/* macOS 高对比度模式 */
+@media (prefers-contrast: high) {
+  .n-button {
+    border-width: 2px;
+  }
+  
+  .n-input,
+  .n-select .n-base-selection {
+    border-width: 2px;
+  }
+  
+  .n-card {
+    border-width: 2px;
+  }
+}
+
+/* macOS 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .n-button,
+  .n-input,
+  .n-card,
+  .n-modal,
+  .n-drawer,
+  .n-popover,
+  .n-dropdown {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* macOS 透明度偏好 */
+@media (prefers-reduced-transparency: reduce) {
+  .n-modal .n-card,
+  .n-drawer .n-drawer-content,
+  .n-popover,
+  .n-dropdown {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: var(--bg-secondary) !important;
+  }
+}
+
+/* 响应式断点 */
+@media (max-width: 640px) {
+  .n-modal .n-card {
+    margin: var(--spacing-md);
+    width: calc(100vw - 32px - var(--safe-area-inset-left) - var(--safe-area-inset-right));
+    max-width: none;
+  }
+  
+  .n-drawer .n-drawer-content {
+    width: calc(100vw - var(--safe-area-inset-left) - var(--safe-area-inset-right));
+  }
+  
+  .n-data-table {
+    font-size: var(--font-size-sm);
+  }
+  
+  .n-tabs .n-tabs-tab {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .n-button-group .n-button {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .n-form-item-label {
+    font-size: var(--font-size-sm);
+  }
+}

@@ -1,16 +1,4 @@
-html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
-    color: white;
-}
-
-body {
-    margin: 0;
-    color: white;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-}
+/* 这个文件现在主要用于字体定义，主要样式已移至 main.css */
 
 @font-face {
     font-family: "Nunito";
@@ -20,7 +8,44 @@ body {
     url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
 }
 
+@font-face {
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 500;
+    src: local(""),
+    url("assets/fonts/nunito-v16-latin-500.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 600;
+    src: local(""),
+    url("assets/fonts/nunito-v16-latin-600.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 700;
+    src: local(""),
+    url("assets/fonts/nunito-v16-latin-700.woff2") format("woff2");
+}
+
+/* 如果 Nunito 字体可用，则使用它 */
+html {
+    font-family: "Nunito", var(--font-family);
+}
+
+/* 确保与 Naive UI 主题一致 */
+html,
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
 #app {
     height: 100vh;
-    text-align: center;
+    width: 100vw;
+    overflow: hidden;
 }

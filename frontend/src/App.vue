@@ -4,17 +4,20 @@
       <n-dialog-provider>
         <n-notification-provider>
           <div id="app">
+            <!-- 调试组件 -->
+            <AuthDebug v-if="showDebug" />
+
             <!-- 加载中 -->
             <div v-if="!authStore.isInitialized" class="loading-screen">
               <n-spin size="large" />
               <p>加载中...</p>
             </div>
 
-            <!-- 需要设置密钥 -->
-            <KeySetup v-else-if="needSetup" />
+            <!-- 需要设置密钥（首次使用） -->
+            <KeySetupPage v-else-if="needSetup" />
 
-            <!-- 需要验证密钥 -->
-            <KeyVerify 
+            <!-- 需要验证密钥（已设置密钥，需要输入） -->
+            <KeyVerifyPage 
               v-else-if="!authStore.isAuthenticated" 
               :has-valid-session="hasValidSession"
             />
@@ -46,19 +49,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { darkTheme } from 'naive-ui'
 import { useAuthStore } from './stores/auth'
 import { useConnectionStore } from './stores/connection'
-import KeySetup from './components/auth/KeySetup.vue'
-import KeyVerify from './components/auth/KeyVerify.vue'
+import KeySetupPage from './views/KeySetupPage.vue'
+import KeyVerifyPage from './views/KeyVerifyPage.vue'
 import AppHeader from './components/layout/AppHeader.vue'
+import AuthDebug from './components/debug/AuthDebug.vue'
 
 const authStore = useAuthStore()
 const connectionStore = useConnectionStore()
 
 const needSetup = ref(false)
 const hasValidSession = ref(false)
+const showDebug = ref(false)
 
 // Naive UI 主题配置
 const themeOverrides = {
@@ -66,10 +71,73 @@ const themeOverrides = {
     primaryColor: '#18a058',
     primaryColorHover: '#36ad6a',
     primaryColorPressed: '#0c7a43',
+    primaryColorSuppl: '#36ad6a',
     errorColor: '#d03050',
     warningColor: '#f0a020',
     successColor: '#18a058',
-    infoColor: '#2080f0'
+    infoColor: '#2080f0',
+    // 深色主题背景色
+    bodyColor: '#101014',
+    popoverColor: '#18181c',
+    cardColor: '#18181c',
+    modalColor: '#18181c',
+    baseColor: '#000000',
+    inputColor: '#222226',
+    // 边框颜色
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    dividerColor: 'rgba(255, 255, 255, 0.1)',
+    // 文字颜色
+    textColorBase: 'rgba(255, 255, 255, 0.85)',
+    textColor1: 'rgba(255, 255, 255, 0.85)',
+    textColor2: 'rgba(255, 255, 255, 0.65)',
+    textColor3: 'rgba(255, 255, 255, 0.45)',
+    textColorDisabled: 'rgba(255, 255, 255, 0.25)',
+    placeholderColor: 'rgba(255, 255, 255, 0.3)',
+    // 圆角
+    borderRadius: '8px',
+    borderRadiusSmall: '6px',
+    // 阴影
+    boxShadow1: '0 1px 2px -2px rgba(0, 0, 0, .8), 0 3px 6px 0 rgba(0, 0, 0, .6), 0 5px 12px 4px rgba(0, 0, 0, .4)',
+    boxShadow2: '0 3px 6px -4px rgba(0, 0, 0, .8), 0 6px 16px 0 rgba(0, 0, 0, .6), 0 9px 28px 8px rgba(0, 0, 0, .4)',
+    boxShadow3: '0 6px 16px -9px rgba(0, 0, 0, .8), 0 9px 28px 0 rgba(0, 0, 0, .6), 0 12px 48px 16px rgba(0, 0, 0, .4)'
+  },
+  Button: {
+    textColor: 'rgba(255, 255, 255, 0.85)',
+    textColorHover: 'rgba(255, 255, 255, 0.95)',
+    textColorPressed: 'rgba(255, 255, 255, 0.85)',
+    textColorFocus: 'rgba(255, 255, 255, 0.95)',
+    textColorDisabled: 'rgba(255, 255, 255, 0.25)',
+    color: '#28282e',
+    colorHover: '#333339',
+    colorPressed: '#1e1e22',
+    colorFocus: '#333339',
+    colorDisabled: '#18181c',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderHover: '1px solid rgba(255, 255, 255, 0.2)',
+    borderPressed: '1px solid rgba(255, 255, 255, 0.1)',
+    borderFocus: '1px solid rgba(255, 255, 255, 0.2)',
+    borderDisabled: '1px solid rgba(255, 255, 255, 0.05)'
+  },
+  Input: {
+    color: '#222226',
+    colorFocus: '#28282e',
+    colorDisabled: '#18181c',
+    textColor: 'rgba(255, 255, 255, 0.85)',
+    placeholderColor: 'rgba(255, 255, 255, 0.3)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderHover: '1px solid rgba(255, 255, 255, 0.2)',
+    borderFocus: '1px solid #18a058',
+    borderDisabled: '1px solid rgba(255, 255, 255, 0.05)'
+  },
+  Card: {
+    color: '#18181c',
+    colorModal: '#18181c',
+    colorPopover: '#18181c',
+    colorEmbedded: '#222226',
+    textColor: 'rgba(255, 255, 255, 0.85)',
+    titleTextColor: 'rgba(255, 255, 255, 0.95)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    actionColor: '#222226'
   }
 }
 
@@ -97,26 +165,38 @@ function handleToggleTerminal() {
   console.log('切换终端')
 }
 
+// 监听认证状态变化
+watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
+  if (isAuthenticated) {
+    needSetup.value = false
+    await connectionStore.loadConnections()
+    await connectionStore.loadActiveSessions()
+    connectionStore.startSessionRefresh()
+  }
+})
+
 onMounted(async () => {
   try {
+    console.log('App.vue: 开始初始化应用')
     const status = await authStore.initializeApp()
+    console.log('App.vue: 初始化状态:', status)
+    
     needSetup.value = status.needSetup
     hasValidSession.value = status.hasValidSession
 
-    console.log('App 初始化状态:', {
+    console.log('App.vue: 设置状态变量:', {
       needSetup: needSetup.value,
       hasValidSession: hasValidSession.value,
       isAuthenticated: authStore.isAuthenticated
     })
 
-    // 如果已认证，加载连接列表和活动会话
     if (authStore.isAuthenticated) {
       await connectionStore.loadConnections()
       await connectionStore.loadActiveSessions()
       connectionStore.startSessionRefresh()
     }
   } catch (error) {
-    console.error('初始化失败:', error)
+    console.error('App.vue: 初始化失败:', error)
   }
 })
 </script>

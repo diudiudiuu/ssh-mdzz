@@ -63,12 +63,25 @@ func (s *Store) GetUserKey() string {
 	return s.userKey
 }
 
-// IsKeySet 检查是否已设置密钥（安全，无死锁）
+// IsKeySet 检查是否已设置密钥（检查本地文件）
 func (s *Store) IsKeySet() bool {
-	// 只读访问，获取读锁
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.userKey != ""
+	
+	// 检查是否有加密配置文件
+	if _, err := os.Stat(s.filePath); err == nil {
+		fmt.Printf("IsKeySet: 发现配置文件，密钥已设置\n")
+		return true
+	}
+	
+	// 检查是否有会话文件
+	if _, err := os.Stat(s.sessionPath); err == nil {
+		fmt.Printf("IsKeySet: 发现会话文件，密钥已设置\n")
+		return true
+	}
+	
+	fmt.Printf("IsKeySet: 未发现配置文件或会话文件，密钥未设置\n")
+	return false
 }
 
 // loadConfigsNoLock 从文件加载配置（内部方法，不加锁）

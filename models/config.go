@@ -51,3 +51,43 @@ type ConnectionStatus struct {
 	Latency     int64  `json:"latency"`
 	Error       string `json:"error"`
 }
+
+// CommandResult SSH命令执行结果
+type CommandResult struct {
+	Success     bool   `json:"success"`
+	Output      string `json:"output"`
+	Error       string `json:"error"`
+	CurrentPath string `json:"currentPath"`
+	Username    string `json:"username"`
+	Hostname    string `json:"hostname"`
+}
+
+// ConnectionInfo SSH连接信息
+type ConnectionInfo struct {
+	Username    string `json:"username"`
+	Hostname    string `json:"hostname"`
+	CurrentPath string `json:"currentPath"`
+}
+
+// ConnectionResult SSH连接结果
+type ConnectionResult struct {
+	Success        bool            `json:"success"`
+	Error          string          `json:"error"`
+	ConnectionInfo *ConnectionInfo `json:"connectionInfo"`
+	WelcomeMessage string          `json:"welcomeMessage"`
+}
+
+// RemoteFile 远程文件信息
+type RemoteFile struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"` // "file" 或 "directory"
+	Permissions string `json:"permissions"`
+	Size        string `json:"size"`
+}
+
+// FileListResult 文件列表结果
+type FileListResult struct {
+	Success bool         `json:"success"`
+	Files   []RemoteFile `json:"files"`
+	Error   string       `json:"error"`
+}

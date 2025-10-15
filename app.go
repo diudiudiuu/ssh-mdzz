@@ -49,6 +49,12 @@ func (a *App) SetEncryptionKey(key string) error {
 		return err
 	}
 
+	// 创建空的配置文件以标记密钥已设置
+	if err := a.store.SaveConfigs(); err != nil {
+		fmt.Printf("SetEncryptionKey: 创建配置文件失败: %v\n", err)
+		return err
+	}
+
 	// 生成并保存会话令牌
 	if err := a.store.CreateSession(); err != nil {
 		fmt.Printf("SetEncryptionKey: 创建会话失败: %v\n", err)
@@ -264,6 +270,166 @@ func (a *App) ExecuteCommand(configID, command string) (string, error) {
 	}
 
 	return ssh.ExecuteCommand(session.SSHClient, command)
+}
+
+// ExecuteSSHCommand 执行SSH命令并返回详细信息（用于Web终端）
+func (a *App) ExecuteSSHCommand(configID, command string) (*models.CommandResult, error) {
+	session, err := a.sessionManager.GetSession(configID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 执行命令
+	output, err := ssh.ExecuteCommand(session.SSHClient, command)
+	if err != nil {
+		return &models.CommandResult{
+			Success: false,
+			Output:  "",
+			Error:   err.Error(),
+		}, nil
+	}
+
+	// 获取当前路径
+	currentPath, _ := ssh.ExecuteCommand(session.SSHClient, "pwd")
+	currentPath = strings.TrimSpace(currentPath)
+
+	// 获取用户名和主机名
+	username, _ := ssh.ExecuteCommand(session.SSHClient, "whoami")
+	username = strings.TrimSpace(username)
+	
+	hostname, _ := ssh.ExecuteCommand(session.SSHClient, "hostname")
+	hostname = strings.TrimSpace(hostname)
+
+	return &models.CommandResult{
+		Success:     true,
+		Output:      output,
+		Error:       "",
+		CurrentPath: currentPath,
+		Username:    username,
+		Hostname:    hostname,
+	}, nil
+}
+
+// ConnectSSH 建立SSH连接（用于Web终端）
+func (a *App) ConnectSSH(configID string) (*models.ConnectionResult, error) {
+	config, err := a.store.GetConfig(configID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建或获取会话
+	session, err := a.sessionManager.GetOrCreateSession(config)
+	if err != nil {
+		return &models.ConnectionResult{
+			Success: false,
+			Error:   err.Error(),
+		}, nil
+	}
+
+	// 获取连接信息
+	currentPath, _ := ssh.ExecuteCommand(session.SSHClient, "pwd")
+	currentPath = strings.TrimSpace(currentPath)
+
+	username, _ := ssh.ExecuteCommand(session.SSHClient, "whoami")
+	username = strings.TrimSpace(username)
+	
+	hostname, _ := ssh.ExecuteCommand(session.SSHClient, "hostname")
+	hostname = strings.TrimSpace(hostname)
+
+	// 获取欢迎信息
+	welcomeMsg := fmt.Sprintf("欢迎来到 %s@%s", username, hostname)
+
+	return &models.ConnectionResult{
+		Success: true,
+		Error:   "",
+		ConnectionInfo: &models.ConnectionInfo{
+			Username:    username,
+			Hostname:    hostname,
+			CurrentPath: currentPath,
+		},
+		WelcomeMessage: welcomeMsg,
+	}, nil
+}
+
+// DisconnectSSH 断开SSH连接（用于Web终端）
+func (a *App) DisconnectSSH(configID string) error {
+	return a.sessionManager.CloseSession(configID)
+}
+
+// GetRemoteFiles 获取远程文件列表（用于Tab补全）
+func (a *App) GetRemoteFiles(configID, path string) (*models.FileListResult, error) {
+	session, err := a.sessionManager.GetSession(configID)
+	if err != nil {
+		return &models.FileListResult{
+			Success: false,
+			Error:   err.Error(),
+		}, nil
+	}
+
+	// 使用ls命令获取文件列表
+	if path == "" || path == "." {
+		path = "."
+	}
+
+	// 执行ls -la命令获取详细信息
+	output, err := ssh.ExecuteCommand(session.SSHClient, fmt.Sprintf("ls -la %s", path))
+	if err != nil {
+		return &models.FileListResult{
+			Success: false,
+			Error:   err.Error(),
+		}, nil
+	}
+
+	// 解析ls输出
+	files := parseLSOutput(output)
+
+	return &models.FileListResult{
+		Success: true,
+		Files:   files,
+		Error:   "",
+	}, nil
+}
+
+// parseLSOutput 解析ls命令的输出
+func parseLSOutput(output string) []models.RemoteFile {
+	var files []models.RemoteFile
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		// 解析ls -la的输出格式
+		parts := strings.Fields(line)
+		if len(parts) < 9 {
+			continue
+		}
+
+		permissions := parts[0]
+		name := strings.Join(parts[8:], " ")
+
+		// 跳过当前目录和父目录
+		if name == "." || name == ".." {
+			continue
+		}
+
+		fileType := "file"
+		if strings.HasPrefix(permissions, "d") {
+			fileType = "directory"
+			name += "/"
+		}
+
+		files = append(files, models.RemoteFile{
+			Name:        name,
+			Type:        fileType,
+			Permissions: permissions,
+			Size:        parts[4],
+		})
+	}
+
+	return files
 }
 
 // ExecuteSudoCommand 执行 sudo 命令

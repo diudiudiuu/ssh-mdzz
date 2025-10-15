@@ -6,6 +6,8 @@ import App from './App.vue'
 
 // 导入全局样式
 import './assets/styles/main.css'
+import './assets/styles/naive-ui-overrides.css'
+import './style.css'
 import 'xterm/css/xterm.css'
 
 const app = createApp(App)
