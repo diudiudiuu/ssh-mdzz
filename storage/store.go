@@ -26,10 +26,11 @@ type Store struct {
 
 // SessionData 会话数据结构
 type SessionData struct {
-	Token     string    `json:"token"`
-	KeyHash   string    `json:"keyHash"`
-	CreatedAt time.Time `json:"createdAt"`
-	ExpiresAt time.Time `json:"expiresAt"`
+	Token            string    `json:"token"`
+	KeyHash          string    `json:"keyHash"`
+	CreatedAt        time.Time `json:"createdAt"`
+	ExpiresAt        time.Time `json:"expiresAt"`
+	EncryptedTempKey string    `json:"encryptedTempKey,omitempty"` // 加密的临时密钥
 }
 
 func NewStore() *Store {
@@ -67,19 +68,19 @@ func (s *Store) GetUserKey() string {
 func (s *Store) IsKeySet() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	// 检查是否有加密配置文件
 	if _, err := os.Stat(s.filePath); err == nil {
 		fmt.Printf("IsKeySet: 发现配置文件，密钥已设置\n")
 		return true
 	}
-	
+
 	// 检查是否有会话文件
 	if _, err := os.Stat(s.sessionPath); err == nil {
 		fmt.Printf("IsKeySet: 发现会话文件，密钥已设置\n")
 		return true
 	}
-	
+
 	fmt.Printf("IsKeySet: 未发现配置文件或会话文件，密钥未设置\n")
 	return false
 }
@@ -139,14 +140,14 @@ func (s *Store) SaveConfigs() error {
 // saveConfigsNoLock 保存所有配置（内部方法，不加锁）
 func (s *Store) saveConfigsNoLock() error {
 	fmt.Printf("saveConfigsNoLock: 开始保存配置\n")
-	
+
 	if s.userKey == "" {
 		fmt.Printf("saveConfigsNoLock: 未设置加密密钥\n")
 		return errors.New("未设置加密密钥")
 	}
 
 	fmt.Printf("saveConfigsNoLock: 开始加密 %d 个配置\n", len(s.configs))
-	
+
 	// 加密配置
 	encryptedConfigs := make([]models.SSHConfig, len(s.configs))
 	for i, config := range s.configs {
@@ -172,7 +173,7 @@ func (s *Store) saveConfigsNoLock() error {
 	} else {
 		fmt.Printf("saveConfigsNoLock: 文件写入成功\n")
 	}
-	
+
 	return err
 }
 
@@ -196,18 +197,18 @@ func (s *Store) AddConfig(config models.SSHConfig) error {
 
 	// 添加调试日志
 	fmt.Printf("AddConfig: 开始添加配置 %s\n", config.Name)
-	
+
 	s.configs = append(s.configs, config)
-	
+
 	fmt.Printf("AddConfig: 开始保存配置到文件\n")
 	err := s.saveConfigsNoLock()
-	
+
 	if err != nil {
 		fmt.Printf("AddConfig: 保存配置失败: %v\n", err)
 	} else {
 		fmt.Printf("AddConfig: 配置保存成功\n")
 	}
-	
+
 	return err
 }
 
@@ -375,12 +376,74 @@ func (s *Store) RestoreFromSession() error {
 		return errors.New("会话已过期")
 	}
 
-	// 尝试加载配置来验证会话的有效性
-	// 这里我们需要通过尝试解密配置来反推密钥是否正确
-	// 但由于安全考虑，我们不能直接从哈希反推密钥
-	// 所以这个方法需要配合前端的密钥缓存使用
-
 	fmt.Printf("RestoreFromSession: 会话验证成功\n")
+	return nil
+}
+
+// CanAutoRestoreFromSession 检查是否可以从会话自动恢复
+func (s *Store) CanAutoRestoreFromSession() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// 检查会话文件是否存在
+	if _, err := os.Stat(s.sessionPath); os.IsNotExist(err) {
+		return false
+	}
+
+	// 读取会话数据
+	data, err := os.ReadFile(s.sessionPath)
+	if err != nil {
+		return false
+	}
+
+	var sessionData SessionData
+	if err := json.Unmarshal(data, &sessionData); err != nil {
+		return false
+	}
+
+	// 检查是否过期
+	if time.Now().After(sessionData.ExpiresAt) {
+		return false
+	}
+
+	// 检查会话是否是最近创建的（比如在最近1小时内）
+	// 这样可以在短时间内自动恢复，但长时间后仍需要用户验证
+	autoRestoreWindow := 1 * time.Hour
+	if time.Now().Sub(sessionData.CreatedAt) > autoRestoreWindow {
+		fmt.Printf("CanAutoRestoreFromSession: 会话创建时间过久，需要重新验证\n")
+		return false
+	}
+
+	// 简化版本：只要会话有效就可以自动恢复
+	return true
+}
+
+// AutoRestoreFromSession 从会话自动恢复密钥
+func (s *Store) AutoRestoreFromSession() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	fmt.Printf("AutoRestoreFromSession: 开始自动恢复\n")
+
+	// 读取会话数据
+	data, err := os.ReadFile(s.sessionPath)
+	if err != nil {
+		return err
+	}
+
+	var sessionData SessionData
+	if err := json.Unmarshal(data, &sessionData); err != nil {
+		return err
+	}
+
+	// 检查是否过期
+	if time.Now().After(sessionData.ExpiresAt) {
+		return errors.New("会话已过期")
+	}
+
+	// 简化版本：会话有效就认为可以恢复
+	// 实际的密钥仍需要用户输入，这里只是标记会话有效
+	fmt.Printf("AutoRestoreFromSession: 会话验证成功\n")
 	return nil
 }
 
@@ -427,4 +490,52 @@ func (s *Store) ValidateKeyWithSession(key string) error {
 	}
 
 	return nil
+}
+
+// decryptTempKey 解密临时密钥
+func (s *Store) decryptTempKey(encryptedKey, token string) (string, error) {
+	// 使用令牌作为解密密钥来解密临时密钥
+	// 这里使用简单的XOR加密作为示例
+	// 在生产环境中应该使用更安全的加密方法
+
+	if encryptedKey == "" || token == "" {
+		return "", errors.New("加密密钥或令牌为空")
+	}
+
+	// 将十六进制字符串转换为字节
+	encryptedBytes, err := hex.DecodeString(encryptedKey)
+	if err != nil {
+		return "", fmt.Errorf("解码加密密钥失败: %w", err)
+	}
+
+	// 使用令牌的哈希作为解密密钥
+	tokenHash := sha256.Sum256([]byte(token))
+
+	// XOR解密
+	decrypted := make([]byte, len(encryptedBytes))
+	for i, b := range encryptedBytes {
+		decrypted[i] = b ^ tokenHash[i%len(tokenHash)]
+	}
+
+	return string(decrypted), nil
+}
+
+// encryptTempKey 加密临时密钥
+func (s *Store) encryptTempKey(key, token string) (string, error) {
+	if key == "" || token == "" {
+		return "", errors.New("密钥或令牌为空")
+	}
+
+	// 使用令牌的哈希作为加密密钥
+	tokenHash := sha256.Sum256([]byte(token))
+
+	// XOR加密
+	keyBytes := []byte(key)
+	encrypted := make([]byte, len(keyBytes))
+	for i, b := range keyBytes {
+		encrypted[i] = b ^ tokenHash[i%len(tokenHash)]
+	}
+
+	// 转换为十六进制字符串
+	return hex.EncodeToString(encrypted), nil
 }

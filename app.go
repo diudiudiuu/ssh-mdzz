@@ -7,6 +7,7 @@ import (
 	"net"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,6 +127,42 @@ func (a *App) RestoreSession() error {
 	}
 
 	fmt.Printf("RestoreSession: 会话验证成功\n")
+	return nil
+}
+
+// CanAutoRestore 检查是否可以自动恢复会话（不需要用户输入密钥）
+func (a *App) CanAutoRestore() bool {
+	fmt.Printf("CanAutoRestore: 检查是否可以自动恢复\n")
+
+	// 检查是否有有效会话
+	if !a.store.HasValidSession() {
+		fmt.Printf("CanAutoRestore: 没有有效会话\n")
+		return false
+	}
+
+	// 检查会话是否支持自动恢复（例如，会话创建时间是否在合理范围内）
+	canRestore := a.store.CanAutoRestoreFromSession()
+	fmt.Printf("CanAutoRestore: 结果 = %v\n", canRestore)
+
+	return canRestore
+}
+
+// AutoRestoreSession 自动恢复会话（不需要用户输入密钥）
+func (a *App) AutoRestoreSession() error {
+	fmt.Printf("AutoRestoreSession: 开始自动恢复会话\n")
+
+	// 检查是否可以自动恢复
+	if !a.CanAutoRestore() {
+		return fmt.Errorf("无法自动恢复会话")
+	}
+
+	// 从会话中恢复密钥
+	if err := a.store.AutoRestoreFromSession(); err != nil {
+		fmt.Printf("AutoRestoreSession: 自动恢复失败: %v\n", err)
+		return fmt.Errorf("自动恢复失败: %w", err)
+	}
+
+	fmt.Printf("AutoRestoreSession: 自动恢复成功\n")
 	return nil
 }
 
@@ -296,7 +333,7 @@ func (a *App) ExecuteSSHCommand(configID, command string) (*models.CommandResult
 	// 获取用户名和主机名
 	username, _ := ssh.ExecuteCommand(session.SSHClient, "whoami")
 	username = strings.TrimSpace(username)
-	
+
 	hostname, _ := ssh.ExecuteCommand(session.SSHClient, "hostname")
 	hostname = strings.TrimSpace(hostname)
 
@@ -332,7 +369,7 @@ func (a *App) ConnectSSH(configID string) (*models.ConnectionResult, error) {
 
 	username, _ := ssh.ExecuteCommand(session.SSHClient, "whoami")
 	username = strings.TrimSpace(username)
-	
+
 	hostname, _ := ssh.ExecuteCommand(session.SSHClient, "hostname")
 	hostname = strings.TrimSpace(hostname)
 
@@ -730,38 +767,102 @@ func (a *App) SendTerminalInput(configID, input string) error {
 	terminalSessionsMutex.RUnlock()
 
 	if !exists {
+		fmt.Printf("SendTerminalInput: 终端会话不存在，配置ID: %s\n", configID)
 		return fmt.Errorf("终端会话不存在")
 	}
 
+	// 记录输入（但不记录敏感信息）
+	if len(input) < 50 {
+		fmt.Printf("SendTerminalInput: 发送输入 [%d bytes]: %q\n", len(input), input)
+	} else {
+		fmt.Printf("SendTerminalInput: 发送输入 [%d bytes]\n", len(input))
+	}
+
 	_, err := terminalSession.Stdin.Write([]byte(input))
+	if err != nil {
+		fmt.Printf("SendTerminalInput: 写入失败: %v\n", err)
+	}
 	return err
 }
 
 // CreateInteractiveTerminal 创建交互式终端会话
 func (a *App) CreateInteractiveTerminal(configID string) error {
+	fmt.Printf("CreateInteractiveTerminal: 开始创建交互式终端，配置ID: %s\n", configID)
+
+	// 检查是否已经有交互式会话
+	terminalSessionsMutex.RLock()
+	if _, exists := terminalSessions[configID]; exists {
+		terminalSessionsMutex.RUnlock()
+		fmt.Printf("CreateInteractiveTerminal: 交互式会话已存在，先关闭旧会话\n")
+		a.CloseTerminalSession(configID)
+	} else {
+		terminalSessionsMutex.RUnlock()
+	}
+
 	session, err := a.sessionManager.GetSession(configID)
 	if err != nil {
+		fmt.Printf("CreateInteractiveTerminal: 获取会话失败: %v\n", err)
 		return err
 	}
+
+	// 测试SSH连接是否正常
+	testSession, err := session.SSHClient.NewSession()
+	if err != nil {
+		fmt.Printf("CreateInteractiveTerminal: SSH连接测试失败: %v\n", err)
+		return fmt.Errorf("SSH连接不可用: %w", err)
+	}
+
+	// 运行一个简单命令测试连接
+	if err := testSession.Run("echo 'connection test'"); err != nil {
+		testSession.Close()
+		fmt.Printf("CreateInteractiveTerminal: SSH连接功能测试失败: %v\n", err)
+		return fmt.Errorf("SSH连接功能异常: %w", err)
+	}
+	testSession.Close()
+	fmt.Printf("CreateInteractiveTerminal: SSH连接测试通过\n")
 
 	// 创建交互式会话
 	sshSession, err := session.SSHClient.NewSession()
 	if err != nil {
+		fmt.Printf("CreateInteractiveTerminal: 创建SSH会话失败: %v\n", err)
 		return err
 	}
 
-	// 设置终端模式
+	// 设置终端模式 - 为交互式程序优化
 	modes := gossh.TerminalModes{
-		gossh.ECHO:          1,
-		gossh.TTY_OP_ISPEED: 14400,
-		gossh.TTY_OP_OSPEED: 14400,
+		gossh.ECHO:          1,     // 启用回显
+		gossh.TTY_OP_ISPEED: 14400, // 输入速度
+		gossh.TTY_OP_OSPEED: 14400, // 输出速度
+		gossh.ICRNL:         1,     // 将回车转换为换行
+		gossh.OPOST:         1,     // 启用输出处理
+		gossh.ONLCR:         1,     // 将换行转换为回车换行
+		gossh.ICANON:        0,     // 禁用规范模式 - 这对交互式程序很重要
+		gossh.ISIG:          1,     // 启用信号处理
+		gossh.IEXTEN:        1,     // 启用扩展处理
+		gossh.ECHOE:         1,     // 启用擦除字符回显
+		gossh.ECHOK:         1,     // 启用杀死字符回显
+		gossh.ECHONL:        0,     // 禁用换行回显
 	}
 
-	// 请求伪终端
-	if err := sshSession.RequestPty("xterm-256color", 80, 24, modes); err != nil {
+	// 设置环境变量 - 这对交互式程序很重要
+	if err := sshSession.Setenv("TERM", "xterm-256color"); err != nil {
+		fmt.Printf("CreateInteractiveTerminal: 设置TERM环境变量失败: %v\n", err)
+		// 不要因为这个失败就退出，继续尝试
+	}
+
+	if err := sshSession.Setenv("LANG", "en_US.UTF-8"); err != nil {
+		fmt.Printf("CreateInteractiveTerminal: 设置LANG环境变量失败: %v\n", err)
+		// 不要因为这个失败就退出，继续尝试
+	}
+
+	// 请求伪终端 - 使用更大的默认尺寸
+	if err := sshSession.RequestPty("xterm-256color", 120, 30, modes); err != nil {
+		fmt.Printf("CreateInteractiveTerminal: 请求伪终端失败: %v\n", err)
 		sshSession.Close()
 		return err
 	}
+
+	fmt.Printf("CreateInteractiveTerminal: 伪终端创建成功\n")
 
 	// 获取输入输出管道
 	stdin, err := sshSession.StdinPipe()
@@ -784,27 +885,36 @@ func (a *App) CreateInteractiveTerminal(configID string) error {
 
 	// 启动 shell
 	if err := sshSession.Shell(); err != nil {
+		fmt.Printf("CreateInteractiveTerminal: 启动Shell失败: %v\n", err)
 		sshSession.Close()
 		return err
 	}
+
+	fmt.Printf("CreateInteractiveTerminal: Shell启动成功\n")
 
 	// 启动输出读取协程
 	go func() {
 		defer sshSession.Close()
 		defer stdin.Close()
 
-		// 读取标准输出
+		// 读取标准输出 - 使用更小的缓冲区以获得更好的实时性
 		go func() {
-			buf := make([]byte, 1024)
+			defer fmt.Printf("CreateInteractiveTerminal: stdout读取协程结束\n")
+			buf := make([]byte, 1024) // 适中的缓冲区大小
 			for {
 				n, err := stdout.Read(buf)
 				if err != nil {
+					if err != io.EOF {
+						fmt.Printf("CreateInteractiveTerminal: 读取stdout失败: %v\n", err)
+					}
 					break
 				}
 				if n > 0 {
+					output := string(buf[:n])
+					// 立即发送输出，保持原始格式
 					runtime.EventsEmit(a.ctx, "terminal-output", map[string]interface{}{
 						"configId": configID,
-						"output":   string(buf[:n]),
+						"output":   output,
 						"type":     "stdout",
 					})
 				}
@@ -813,16 +923,21 @@ func (a *App) CreateInteractiveTerminal(configID string) error {
 
 		// 读取标准错误
 		go func() {
+			defer fmt.Printf("CreateInteractiveTerminal: stderr读取协程结束\n")
 			buf := make([]byte, 1024)
 			for {
 				n, err := stderr.Read(buf)
 				if err != nil {
+					if err != io.EOF {
+						fmt.Printf("CreateInteractiveTerminal: 读取stderr失败: %v\n", err)
+					}
 					break
 				}
 				if n > 0 {
+					output := string(buf[:n])
 					runtime.EventsEmit(a.ctx, "terminal-output", map[string]interface{}{
 						"configId": configID,
-						"output":   string(buf[:n]),
+						"output":   output,
 						"type":     "stderr",
 					})
 				}

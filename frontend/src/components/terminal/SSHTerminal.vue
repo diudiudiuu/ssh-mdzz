@@ -9,67 +9,64 @@
         <span>SSH Terminal - {{ configId }}</span>
       </div>
       <div class="terminal-actions">
-        <n-button 
-          size="small" 
-          quaternary 
-          @click="clearTerminal"
-          title="清空终端"
-        >
+        <n-button size="small" quaternary @click="toggleTerminalMode"
+          :title="useInteractiveMode ? '切换到简单模式' : '切换到交互模式'">
           <template #icon>
-            <n-icon><TrashOutline /></n-icon>
+            <n-icon>
+              <TerminalOutline v-if="!useInteractiveMode" />
+              <CodeOutline v-else />
+            </n-icon>
           </template>
         </n-button>
-        <n-button 
-          size="small" 
-          quaternary 
-          @click="reconnect"
-          title="重新连接"
-          :loading="connectionStatus === 'connecting'"
-        >
+        <n-button v-if="useInteractiveMode" size="small" quaternary @click="runDiagnostics" title="运行诊断测试">
           <template #icon>
-            <n-icon><RefreshOutline /></n-icon>
+            <n-icon>
+              <BugOutline />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button size="small" quaternary @click="clearTerminal" title="清空终端">
+          <template #icon>
+            <n-icon>
+              <TrashOutline />
+            </n-icon>
+          </template>
+        </n-button>
+        <n-button size="small" quaternary @click="reconnect" title="重新连接" :loading="connectionStatus === 'connecting'">
+          <template #icon>
+            <n-icon>
+              <RefreshOutline />
+            </n-icon>
           </template>
         </n-button>
       </div>
     </div>
 
     <div class="terminal-container" ref="terminalContainer">
-      <div class="terminal-output" ref="terminalOutput">
-        <div 
-          v-for="(line, index) in terminalLines" 
-          :key="index"
-          class="terminal-line"
-          :class="line.type"
-          v-html="formatLine(line)"
-        />
-      </div>
-      
-      <!-- 命令输入行 -->
-      <div class="terminal-input-line">
-        <span class="prompt">{{ currentPrompt }}</span>
-        <div class="input-container">
-          <input
-            ref="commandInput"
-            v-model="currentCommand"
-            @keydown="handleKeyDown"
-            @input="handleInput"
-            @focus="showCompletions && updateCompletions()"
-            class="command-input"
-            :disabled="isExecuting"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="输入命令... (Tab键自动补全)"
-          />
-          <div class="cursor" :class="{ blinking: !isExecuting }"></div>
+      <!-- 交互式终端 (使用 xterm.js) -->
+      <div v-if="useInteractiveMode" ref="xtermContainer" class="xterm-container"></div>
+
+      <!-- 简单终端 (原有实现) -->
+      <div v-else class="simple-terminal">
+        <div class="terminal-output" ref="terminalOutput">
+          <div v-for="(line, index) in terminalLines" :key="index" class="terminal-line" :class="line.type"
+            v-html="formatLine(line)" />
+        </div>
+
+        <!-- 命令输入行 -->
+        <div class="terminal-input-line">
+          <span class="prompt">{{ currentPrompt }}</span>
+          <div class="input-container">
+            <input ref="commandInput" v-model="currentCommand" @keydown="handleKeyDown" @input="handleInput"
+              @focus="showCompletions && updateCompletions()" class="command-input" :disabled="isExecuting"
+              autocomplete="off" spellcheck="false" placeholder="输入命令... (Tab键自动补全)" />
+            <div class="cursor" :class="{ blinking: !isExecuting }"></div>
+          </div>
         </div>
       </div>
-      
+
       <!-- Tab 补全提示弹窗 -->
-      <div 
-        v-if="completions.length > 0 && showCompletions" 
-        class="completions-popup"
-        ref="completionsPopup"
-      >
+      <div v-if="completions.length > 0 && showCompletions" class="completions-popup" ref="completionsPopup">
         <div class="completions-header">
           <span class="completions-title">
             {{ completionType === 'command' ? '命令补全' : '文件补全' }}
@@ -79,19 +76,12 @@
           </span>
         </div>
         <div class="completions-list">
-          <div 
-            v-for="(completion, index) in completions" 
-            :key="index"
-            class="completion-item"
-            :class="{ 
-              active: index === selectedCompletion,
-              'is-command': completion.type === 'command',
-              'is-file': completion.type === 'file',
-              'is-directory': completion.type === 'directory'
-            }"
-            @click="selectCompletion(completion)"
-            @mouseenter="selectedCompletion = index"
-          >
+          <div v-for="(completion, index) in completions" :key="index" class="completion-item" :class="{
+            active: index === selectedCompletion,
+            'is-command': completion.type === 'command',
+            'is-file': completion.type === 'file',
+            'is-directory': completion.type === 'directory'
+          }" @click="selectCompletion(completion)" @mouseenter="selectedCompletion = index">
             <div class="completion-icon">
               <span v-if="completion.type === 'command'">⚡</span>
               <span v-else-if="completion.type === 'directory'">📁</span>
@@ -117,10 +107,7 @@
       </div>
 
       <!-- 命令提示信息 -->
-      <div 
-        v-if="showCommandHint && currentCommandInfo" 
-        class="command-hint"
-      >
+      <div v-if="showCommandHint && currentCommandInfo" class="command-hint">
         <div class="hint-header">
           <span class="hint-command">{{ currentCommandInfo.command }}</span>
           <span class="hint-description">{{ currentCommandInfo.description }}</span>
@@ -136,7 +123,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 状态栏 -->
     <div class="terminal-status">
       <div class="status-left">
@@ -161,12 +148,18 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useMessage } from 'naive-ui'
-import { 
-  TerminalOutline, 
-  TrashOutline, 
-  RefreshOutline 
+import {
+  TerminalOutline,
+  TrashOutline,
+  RefreshOutline,
+  CodeOutline,
+  BugOutline
 } from '@vicons/ionicons5'
 import { useConnectionStore } from '@/stores/connection'
+import { Terminal } from 'xterm'
+import { FitAddon } from 'xterm-addon-fit'
+import { SearchAddon } from 'xterm-addon-search'
+import { WebLinksAddon } from 'xterm-addon-web-links'
 
 const props = defineProps({
   configId: {
@@ -181,6 +174,16 @@ const message = useMessage()
 const terminalContainer = ref(null)
 const terminalOutput = ref(null)
 const commandInput = ref(null)
+const xtermContainer = ref(null)
+
+// 终端模式切换
+const useInteractiveMode = ref(false)
+
+// xterm.js 相关
+let xterm = null
+let fitAddon = null
+let searchAddon = null
+let webLinksAddon = null
 
 const terminalLines = ref([
   { type: 'info', content: '正在连接到 SSH 服务器...', timestamp: new Date() }
@@ -258,7 +261,7 @@ const commandDatabase = {
     usage: 'mv [选项] 源文件 目标文件',
     examples: ['mv old.txt new.txt', 'mv file.txt /tmp/', 'mv *.txt backup/']
   },
-  
+
   // 文件查看和编辑
   'cat': {
     command: 'cat',
@@ -284,7 +287,7 @@ const commandDatabase = {
     usage: 'tail [选项] 文件名',
     examples: ['tail file.txt', 'tail -n 20 file.txt', 'tail -f log.txt']
   },
-  
+
   // 搜索和查找
   'grep': {
     command: 'grep',
@@ -298,7 +301,7 @@ const commandDatabase = {
     usage: 'find [路径] [条件]',
     examples: ['find . -name "*.txt"', 'find /home -type f -size +1M', 'find . -mtime -7']
   },
-  
+
   // 系统信息和进程
   'ps': {
     command: 'ps',
@@ -324,7 +327,7 @@ const commandDatabase = {
     usage: 'kill [信号] PID',
     examples: ['kill 1234', 'kill -9 1234', 'kill -TERM 1234']
   },
-  
+
   // 网络和传输
   'wget': {
     command: 'wget',
@@ -350,7 +353,7 @@ const commandDatabase = {
     usage: 'scp [选项] 源文件 目标位置',
     examples: ['scp file.txt user@server:/path/', 'scp -r directory user@server:/path/', 'scp user@server:/path/file.txt .']
   },
-  
+
   // 压缩和解压
   'tar': {
     command: 'tar',
@@ -370,7 +373,7 @@ const commandDatabase = {
     usage: 'unzip [选项] 压缩文件名',
     examples: ['unzip archive.zip', 'unzip -l archive.zip', 'unzip archive.zip -d /path/']
   },
-  
+
   // 权限和所有权
   'chmod': {
     command: 'chmod',
@@ -384,7 +387,7 @@ const commandDatabase = {
     usage: 'chown [选项] 所有者:组 文件名',
     examples: ['chown user:group file.txt', 'chown -R user directory/', 'chown :group file.txt']
   },
-  
+
   // 系统管理
   'systemctl': {
     command: 'systemctl',
@@ -398,7 +401,7 @@ const commandDatabase = {
     usage: 'service [服务名] [命令]',
     examples: ['service nginx status', 'service apache2 restart', 'service mysql stop']
   },
-  
+
   // 版本控制
   'git': {
     command: 'git',
@@ -406,7 +409,7 @@ const commandDatabase = {
     usage: 'git [命令] [选项]',
     examples: ['git status', 'git add .', 'git commit -m "message"', 'git push origin main']
   },
-  
+
   // 容器化
   'docker': {
     command: 'docker',
@@ -457,45 +460,63 @@ Object.keys(commandAliases).forEach(alias => {
 // 模拟文件系统结构
 const fileSystem = {
   '/': {
-    'home': { type: 'directory', children: {
-      'user': { type: 'directory', children: {
-        'Documents': { type: 'directory', children: {
-          'project1': { type: 'directory', children: {} },
-          'notes.txt': { type: 'file' },
-          'readme.md': { type: 'file' }
-        }},
-        'Downloads': { type: 'directory', children: {
-          'file1.zip': { type: 'file' },
-          'image.png': { type: 'file' }
-        }},
-        'Desktop': { type: 'directory', children: {} },
-        '.bashrc': { type: 'file' },
-        '.bash_profile': { type: 'file' },
-        '.ssh': { type: 'directory', children: {
-          'id_rsa': { type: 'file' },
-          'id_rsa.pub': { type: 'file' },
-          'config': { type: 'file' }
-        }}
-      }}
-    }},
-    'etc': { type: 'directory', children: {
-      'nginx': { type: 'directory', children: {} },
-      'apache2': { type: 'directory', children: {} },
-      'hosts': { type: 'file' },
-      'passwd': { type: 'file' }
-    }},
-    'var': { type: 'directory', children: {
-      'log': { type: 'directory', children: {
+    'home': {
+      type: 'directory', children: {
+        'user': {
+          type: 'directory', children: {
+            'Documents': {
+              type: 'directory', children: {
+                'project1': { type: 'directory', children: {} },
+                'notes.txt': { type: 'file' },
+                'readme.md': { type: 'file' }
+              }
+            },
+            'Downloads': {
+              type: 'directory', children: {
+                'file1.zip': { type: 'file' },
+                'image.png': { type: 'file' }
+              }
+            },
+            'Desktop': { type: 'directory', children: {} },
+            '.bashrc': { type: 'file' },
+            '.bash_profile': { type: 'file' },
+            '.ssh': {
+              type: 'directory', children: {
+                'id_rsa': { type: 'file' },
+                'id_rsa.pub': { type: 'file' },
+                'config': { type: 'file' }
+              }
+            }
+          }
+        }
+      }
+    },
+    'etc': {
+      type: 'directory', children: {
         'nginx': { type: 'directory', children: {} },
-        'apache2': { type: 'directory', children: {} }
-      }},
-      'www': { type: 'directory', children: {} }
-    }},
+        'apache2': { type: 'directory', children: {} },
+        'hosts': { type: 'file' },
+        'passwd': { type: 'file' }
+      }
+    },
+    'var': {
+      type: 'directory', children: {
+        'log': {
+          type: 'directory', children: {
+            'nginx': { type: 'directory', children: {} },
+            'apache2': { type: 'directory', children: {} }
+          }
+        },
+        'www': { type: 'directory', children: {} }
+      }
+    },
     'tmp': { type: 'directory', children: {} },
-    'usr': { type: 'directory', children: {
-      'bin': { type: 'directory', children: {} },
-      'local': { type: 'directory', children: {} }
-    }}
+    'usr': {
+      type: 'directory', children: {
+        'bin': { type: 'directory', children: {} },
+        'local': { type: 'directory', children: {} }
+      }
+    }
   }
 }
 
@@ -524,34 +545,34 @@ function getCurrentDirectoryFiles() {
 // 执行命令
 async function executeCommand(command) {
   if (!command.trim()) return
-  
+
   isExecuting.value = true
   hideCompletions()
-  
+
   // 添加命令到历史
   commandHistory.value.unshift(command)
   if (commandHistory.value.length > 100) {
     commandHistory.value.pop()
   }
-  
+
   // 显示命令
   terminalLines.value.push({
     type: 'command',
     content: command,
     timestamp: new Date()
   })
-  
+
   try {
     // 调用后端 API 执行真实的 SSH 命令
     const output = await executeSSHCommand(command)
-    
+
     // 处理输出，即使是空字符串也要显示
     if (output !== undefined && output !== null) {
       if (output.trim() === '') {
         // 如果输出为空，不显示任何内容（某些命令如cd没有输出）
         return
       }
-      
+
       // 处理多行输出
       const lines = output.split('\n')
       lines.forEach(line => {
@@ -582,7 +603,7 @@ async function executeCommand(command) {
     isExecuting.value = false
     currentCommand.value = ''
     historyIndex.value = -1
-    
+
     // 滚动到底部
     await nextTick()
     scrollToBottom()
@@ -593,40 +614,40 @@ async function executeCommand(command) {
 function processCommandAlias(command) {
   const trimmedCommand = command.trim()
   const firstWord = trimmedCommand.split(' ')[0]
-  
+
   if (commandAliases[firstWord]) {
     // 替换别名
     const aliasCommand = commandAliases[firstWord]
     const restOfCommand = trimmedCommand.substring(firstWord.length).trim()
     return restOfCommand ? `${aliasCommand} ${restOfCommand}` : aliasCommand
   }
-  
+
   return command
 }
 
 // 执行真实的SSH命令
 async function executeSSHCommand(command) {
   console.log('原始命令:', command, '配置ID:', props.configId)
-  
+
   // 处理命令别名
   const processedCommand = processCommandAlias(command)
   console.log('处理后命令:', processedCommand)
-  
+
   try {
     // 使用现有的ExecuteCommand函数
     const output = await window.go.main.App.ExecuteCommand(props.configId, processedCommand)
-    
+
     console.log('命令输出:', output, '类型:', typeof output)
-    
+
     // 检查输出
     if (output === undefined || output === null) {
       console.warn('命令输出为undefined或null')
       return ''
     }
-    
+
     // 确保返回字符串
     const result = String(output)
-    
+
     // 如果是cd命令，更新当前路径
     if (processedCommand.trim().startsWith('cd ') || processedCommand.trim() === 'cd') {
       try {
@@ -645,12 +666,12 @@ async function executeSSHCommand(command) {
         console.error('获取当前路径失败:', pwdError)
       }
     }
-    
+
     return result
-    
+
   } catch (error) {
     console.error('SSH命令执行错误:', error)
-    
+
     // 直接返回错误信息作为输出，不抛出异常
     const errorMsg = error.message || error.toString()
     return errorMsg
@@ -660,10 +681,10 @@ async function executeSSHCommand(command) {
 // 模拟命令执行（后续替换为真实的 SSH 命令执行）
 async function simulateCommand(command) {
   await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200))
-  
+
   const cmd = command.trim().toLowerCase()
   const args = command.trim().split(' ')
-  
+
   if (cmd === 'pwd') {
     return '/home/user'
   } else if (cmd === 'whoami') {
@@ -766,7 +787,7 @@ function scrollCompletionIntoView() {
   nextTick(() => {
     const popup = completionsPopup.value
     if (!popup) return
-    
+
     const activeItem = popup.querySelector('.completion-item.active')
     if (activeItem) {
       activeItem.scrollIntoView({
@@ -850,13 +871,13 @@ async function handleTabCompletion() {
   const command = currentCommand.value
   const words = command.split(' ')
   const currentWord = words[words.length - 1]
-  
+
   if (words.length === 1) {
     // 补全命令
-    const matches = commonCommands.filter(cmd => 
+    const matches = commonCommands.filter(cmd =>
       cmd.text.startsWith(currentWord.toLowerCase())
     )
-    
+
     if (matches.length === 1) {
       currentCommand.value = matches[0].text + ' '
       hideCompletions()
@@ -867,16 +888,16 @@ async function handleTabCompletion() {
   } else {
     // 补全文件路径 - 使用真实的远程文件
     let matches = []
-    
+
     if (connectionStatus.value === 'connected') {
       matches = await updateFileCompletions(currentWord)
     } else {
       const files = getCurrentDirectoryFiles()
-      matches = files.filter(file => 
+      matches = files.filter(file =>
         file.text.toLowerCase().startsWith(currentWord.toLowerCase())
       )
     }
-    
+
     if (matches.length === 1) {
       words[words.length - 1] = matches[0].text
       currentCommand.value = words.join(' ')
@@ -889,7 +910,7 @@ async function handleTabCompletion() {
       showCompletionPopup(matches)
     }
   }
-  
+
   // 如果没有匹配项，显示所有可能的选项
   if (completions.value.length === 0) {
     if (words.length === 1) {
@@ -914,18 +935,18 @@ async function updateCompletions() {
   const command = currentCommand.value
   const words = command.split(' ')
   const currentWord = words[words.length - 1]
-  
+
   if (!currentWord || currentWord.length < 1) {
     hideCompletions()
     return
   }
-  
+
   let matches = []
-  
+
   if (words.length === 1) {
     // 命令补全
     completionType.value = 'command'
-    matches = commonCommands.filter(cmd => 
+    matches = commonCommands.filter(cmd =>
       cmd.text.toLowerCase().startsWith(currentWord.toLowerCase())
     ).slice(0, 12)
   } else {
@@ -936,12 +957,12 @@ async function updateCompletions() {
     } else {
       // 如果未连接，使用本地模拟文件
       const files = getCurrentDirectoryFiles()
-      matches = files.filter(file => 
+      matches = files.filter(file =>
         file.text.toLowerCase().startsWith(currentWord.toLowerCase())
       ).slice(0, 12)
     }
   }
-  
+
   if (matches.length > 0) {
     showCompletionPopup(matches)
   } else {
@@ -954,7 +975,7 @@ function showCompletionPopup(matches) {
   completions.value = matches
   selectedCompletion.value = 0
   showCompletions.value = true
-  
+
   // 自动滚动到第一个选项
   nextTick(() => {
     scrollCompletionIntoView()
@@ -964,7 +985,7 @@ function showCompletionPopup(matches) {
 // 选择补全项
 function selectCompletion(completion) {
   const words = currentCommand.value.split(' ')
-  
+
   if (words.length === 1) {
     currentCommand.value = completion.text + ' '
   } else {
@@ -978,7 +999,7 @@ function selectCompletion(completion) {
       currentCommand.value += ' '
     }
   }
-  
+
   hideCompletions()
   updateCommandHint()
   commandInput.value?.focus()
@@ -994,11 +1015,11 @@ function hideCompletions() {
 // 格式化终端行
 function formatLine(line) {
   let content = line.content
-  
+
   // 添加时间戳
-  const time = line.timestamp ? 
+  const time = line.timestamp ?
     `<span class="timestamp">[${line.timestamp.toLocaleTimeString()}]</span> ` : ''
-  
+
   // 根据类型添加前缀和样式
   switch (line.type) {
     case 'command':
@@ -1022,7 +1043,258 @@ function handleKeyUp(event) {
 
 // 清空终端
 function clearTerminal() {
-  terminalLines.value = []
+  if (useInteractiveMode.value && xterm) {
+    xterm.clear()
+  } else {
+    terminalLines.value = []
+  }
+}
+
+// 切换终端模式
+function toggleTerminalMode() {
+  useInteractiveMode.value = !useInteractiveMode.value
+
+  if (useInteractiveMode.value) {
+    // 切换到交互模式
+    nextTick(() => {
+      initializeXterm()
+    })
+  } else {
+    // 切换到简单模式
+    destroyXterm()
+    nextTick(() => {
+      commandInput.value?.focus()
+    })
+  }
+}
+
+// 初始化 xterm.js
+function initializeXterm() {
+  if (xterm || !xtermContainer.value) return
+
+  console.log('初始化 xterm.js 终端')
+
+  // 创建终端实例
+  xterm = new Terminal({
+    theme: {
+      background: '#1a1a1a',
+      foreground: '#ffffff',
+      cursor: '#ffffff',
+      cursorAccent: '#000000',
+      selection: 'rgba(255, 255, 255, 0.3)',
+      black: '#000000',
+      red: '#e06c75',
+      green: '#98c379',
+      yellow: '#e5c07b',
+      blue: '#61afef',
+      magenta: '#c678dd',
+      cyan: '#56b6c2',
+      white: '#ffffff',
+      brightBlack: '#5c6370',
+      brightRed: '#e06c75',
+      brightGreen: '#98c379',
+      brightYellow: '#e5c07b',
+      brightBlue: '#61afef',
+      brightMagenta: '#c678dd',
+      brightCyan: '#56b6c2',
+      brightWhite: '#ffffff'
+    },
+    fontSize: 14,
+    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    cursorBlink: true,
+    cursorStyle: 'block',
+    scrollback: 1000,
+    tabStopWidth: 4,
+    allowTransparency: true,
+    convertEol: true,
+    disableStdin: false
+  })
+
+  // 添加插件
+  fitAddon = new FitAddon()
+  searchAddon = new SearchAddon()
+  webLinksAddon = new WebLinksAddon()
+
+  xterm.loadAddon(fitAddon)
+  xterm.loadAddon(searchAddon)
+  xterm.loadAddon(webLinksAddon)
+
+  // 打开终端
+  xterm.open(xtermContainer.value)
+
+  // 适配大小
+  setTimeout(() => {
+    fitAddon.fit()
+  }, 100)
+
+  // 监听数据输入
+  xterm.onData(data => {
+    sendTerminalInput(data)
+  })
+
+  // 监听窗口大小变化
+  window.addEventListener('resize', handleTerminalResize)
+
+  // 显示欢迎信息
+  xterm.write('\x1b[32m交互式终端已启动\x1b[0m\r\n')
+  xterm.write('\x1b[33m提示: 现在可以运行 top, htop, vi 等交互式命令\x1b[0m\r\n')
+
+  // 连接到后端的交互式终端
+  connectInteractiveTerminal()
+}
+
+// 销毁 xterm.js
+function destroyXterm() {
+  if (xterm) {
+    // 关闭后端的交互式终端会话
+    closeInteractiveTerminal()
+
+    // 移除事件监听
+    window.removeEventListener('resize', handleTerminalResize)
+
+    // 销毁终端
+    xterm.dispose()
+    xterm = null
+    fitAddon = null
+    searchAddon = null
+    webLinksAddon = null
+  }
+}
+
+// 处理终端大小变化
+function handleTerminalResize() {
+  if (fitAddon && xterm) {
+    fitAddon.fit()
+
+    // 通知后端调整终端大小
+    const dimensions = fitAddon.proposeDimensions()
+    if (dimensions) {
+      window.go.main.App.ResizeTerminal(props.configId, dimensions.cols, dimensions.rows)
+        .catch(err => console.error('调整终端大小失败:', err))
+    }
+  }
+}
+
+// 发送终端输入到后端
+async function sendTerminalInput(data) {
+  try {
+    await window.go.main.App.SendTerminalInput(props.configId, data)
+  } catch (error) {
+    console.error('发送终端输入失败:', error)
+    if (xterm) {
+      xterm.write('\r\n\x1b[31m发送输入失败: ' + error.message + '\x1b[0m\r\n')
+    }
+  }
+}
+
+// 连接交互式终端
+async function connectInteractiveTerminal() {
+  try {
+    console.log('连接交互式终端，配置ID:', props.configId)
+
+    // 监听终端输出事件（在创建会话之前设置监听）
+    if (typeof window !== 'undefined' && window.runtime) {
+      window.runtime.EventsOn('terminal-output', handleTerminalOutput)
+      window.runtime.EventsOn('terminal-status', handleTerminalStatus)
+    }
+
+    // 创建后端的交互式终端会话
+    await window.go.main.App.CreateInteractiveTerminal(props.configId)
+
+    if (xterm) {
+      xterm.write('\x1b[32mSSH 交互式会话已建立\x1b[0m\r\n')
+    }
+
+    console.log('交互式终端连接成功')
+  } catch (error) {
+    console.error('连接交互式终端失败:', error)
+    if (xterm) {
+      xterm.write('\x1b[31m连接失败: ' + error.message + '\x1b[0m\r\n')
+      xterm.write('\x1b[33m请检查SSH连接是否正常\x1b[0m\r\n')
+    }
+  }
+}
+
+// 关闭交互式终端
+async function closeInteractiveTerminal() {
+  try {
+    // 移除事件监听
+    if (typeof window !== 'undefined' && window.runtime) {
+      window.runtime.EventsOff('terminal-output')
+      window.runtime.EventsOff('terminal-status')
+    }
+
+    // 关闭后端的交互式终端会话
+    await window.go.main.App.CloseTerminalSession(props.configId)
+  } catch (error) {
+    console.error('关闭交互式终端失败:', error)
+  }
+}
+
+// 处理终端输出事件
+function handleTerminalOutput(data) {
+  if (data.configId === props.configId && xterm && useInteractiveMode.value) {
+    // 直接写入终端，保持原始格式
+    xterm.write(data.output)
+  }
+}
+
+// 处理终端状态事件
+function handleTerminalStatus(data) {
+  if (data.configId === props.configId) {
+    if (data.connected) {
+      connectionStatus.value = 'connected'
+      statusText.value = '已连接 (交互模式)'
+    } else {
+      connectionStatus.value = 'disconnected'
+      statusText.value = '连接已断开'
+      if (xterm) {
+        xterm.write('\r\n\x1b[31m连接已断开\x1b[0m\r\n')
+      }
+    }
+  }
+}
+
+// 运行诊断测试
+async function runDiagnostics() {
+  if (!xterm || !useInteractiveMode.value) return
+
+  xterm.write('\r\n\x1b[36m=== 开始诊断测试 ===\x1b[0m\r\n')
+
+  const diagnosticCommands = [
+    'echo "1. 环境变量检查"',
+    'echo "TERM: $TERM"',
+    'echo "LANG: $LANG"',
+    'echo "USER: $USER"',
+    'echo ""',
+    'echo "2. 用户权限检查"',
+    'whoami',
+    'id',
+    'echo ""',
+    'echo "3. top 命令检查"',
+    'which top',
+    'ls -la /usr/bin/top 2>/dev/null || echo "top 命令不存在"',
+    'echo ""',
+    'echo "4. /proc 文件系统检查"',
+    'ls -ld /proc',
+    'cat /proc/loadavg 2>/dev/null || echo "无法访问 /proc/loadavg"',
+    'echo ""',
+    'echo "5. 测试 top 单次运行"',
+    'top -n 1 -b | head -5 2>/dev/null || echo "top -n 1 失败"',
+    'echo ""',
+    'echo "6. 替代命令测试"',
+    'ps aux | head -3',
+    'uptime',
+    'echo ""',
+    'echo "=== 诊断测试完成 ==="',
+    'echo "如果上述测试正常，请尝试运行: top"'
+  ]
+
+  for (const cmd of diagnosticCommands) {
+    await sendTerminalInput(cmd + '\r')
+    // 等待一小段时间让命令执行
+    await new Promise(resolve => setTimeout(resolve, 200))
+  }
 }
 
 // 建立SSH连接
@@ -1030,65 +1302,65 @@ async function connectSSH() {
   try {
     connectionStatus.value = 'connecting'
     statusText.value = '正在连接SSH服务器...'
-    
+
     // 使用现有的CreateSession函数
     await window.go.main.App.CreateSession(props.configId)
-    
+
     connectionStatus.value = 'connected'
-    statusText.value = '已连接'
-    
+    statusText.value = useInteractiveMode.value ? '已连接 (交互模式)' : '已连接 (简单模式)'
+
     // 启动会话计时器
     startSessionTimer()
-    
+
     // 获取连接信息
     try {
       const pwdOutput = await window.go.main.App.ExecuteCommand(props.configId, 'pwd')
       currentPath.value = pwdOutput.trim() || '~'
-      
+
       const whoamiOutput = await window.go.main.App.ExecuteCommand(props.configId, 'whoami')
       const username = whoamiOutput.trim() || 'user'
-      
+
       const hostnameOutput = await window.go.main.App.ExecuteCommand(props.configId, 'hostname')
       const hostname = hostnameOutput.trim() || 'server'
-      
+
       currentPrompt.value = `${username}@${hostname}:${currentPath.value}$ `
-      
+
       terminalLines.value.push({
         type: 'success',
         content: `成功连接到 ${hostname}`,
         timestamp: new Date()
       })
-      
+
       terminalLines.value.push({
         type: 'info',
         content: `欢迎来到 ${username}@${hostname}`,
         timestamp: new Date()
       })
-      
+
     } catch (infoError) {
       // 如果获取信息失败，使用默认值
       currentPath.value = '~'
       currentPrompt.value = 'user@server:~$ '
-      
+
       terminalLines.value.push({
         type: 'success',
         content: 'SSH连接成功',
         timestamp: new Date()
       })
     }
-    
+
     message.success('SSH连接成功')
-    
+
   } catch (error) {
     connectionStatus.value = 'disconnected'
     statusText.value = '连接失败'
-    
+
     terminalLines.value.push({
       type: 'error',
       content: `SSH连接失败: ${error.message}`,
       timestamp: new Date()
     })
-    
+
     message.error(`SSH连接失败: ${error.message}`)
     console.error('SSH连接错误:', error)
   }
@@ -1096,17 +1368,41 @@ async function connectSSH() {
 
 // 重新连接
 async function reconnect() {
+  connectionStatus.value = 'connecting'
+  statusText.value = '正在重连...'
+
   try {
+    // 如果是交互模式，先关闭交互式终端
+    if (useInteractiveMode.value && xterm) {
+      await closeInteractiveTerminal()
+    }
+
     // 先断开现有连接
     await disconnectSSH()
-    
+
     // 清空终端
-    terminalLines.value = []
-    
+    if (!useInteractiveMode.value) {
+      terminalLines.value = []
+    }
+
+    // 等待一下
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
     // 重新连接
     await connectSSH()
+
+    // 如果是交互模式，重新初始化终端
+    if (useInteractiveMode.value) {
+      await nextTick()
+      if (xtermContainer.value) {
+        initializeXterm()
+      }
+    }
   } catch (error) {
     console.error('重连失败:', error)
+    connectionStatus.value = 'disconnected'
+    statusText.value = '重连失败'
+    message.error(`重连失败: ${error.message}`)
   }
 }
 
@@ -1114,10 +1410,10 @@ async function reconnect() {
 async function disconnectSSH() {
   try {
     await window.go.main.App.CloseSession(props.configId)
-    
+
     // 停止会话计时器
     stopSessionTimer()
-    
+
     // 更新状态
     connectionStatus.value = 'disconnected'
     statusText.value = '已断开'
@@ -1138,7 +1434,7 @@ async function getRemoteFiles(path = '.') {
   try {
     // 使用现有的ListRemoteFiles函数
     const files = await window.go.main.App.ListRemoteFiles(props.configId, path)
-    
+
     if (files && Array.isArray(files)) {
       return files.map(file => ({
         text: file.isDir ? file.name + '/' : file.name,
@@ -1149,7 +1445,7 @@ async function getRemoteFiles(path = '.') {
     }
   } catch (error) {
     console.error('获取远程文件列表失败:', error)
-    
+
     // 如果ListRemoteFiles失败，尝试使用ls命令
     try {
       const lsOutput = await window.go.main.App.ExecuteCommand(props.configId, `ls -la ${path}`)
@@ -1158,7 +1454,7 @@ async function getRemoteFiles(path = '.') {
       console.error('ls命令也失败:', lsError)
     }
   }
-  
+
   // 如果获取失败，返回默认文件列表
   return getCurrentDirectoryFiles()
 }
@@ -1167,24 +1463,24 @@ async function getRemoteFiles(path = '.') {
 function parseLSOutput(output) {
   const files = []
   const lines = output.split('\n')
-  
+
   for (const line of lines) {
     const trimmedLine = line.trim()
     if (!trimmedLine || trimmedLine.startsWith('total') || trimmedLine === '') {
       continue
     }
-    
+
     const parts = trimmedLine.split(/\s+/)
     if (parts.length < 9) continue
-    
+
     const permissions = parts[0]
     const name = parts.slice(8).join(' ')
-    
+
     // 跳过当前目录和父目录
     if (name === '.' || name === '..') continue
-    
+
     const isDirectory = permissions.startsWith('d')
-    
+
     files.push({
       text: isDirectory ? name + '/' : name,
       type: isDirectory ? 'directory' : 'file',
@@ -1192,7 +1488,7 @@ function parseLSOutput(output) {
       size: parts[4]
     })
   }
-  
+
   return files
 }
 
@@ -1200,14 +1496,14 @@ function parseLSOutput(output) {
 async function updateFileCompletions(currentWord) {
   try {
     const files = await getRemoteFiles()
-    const matches = files.filter(file => 
+    const matches = files.filter(file =>
       file.text.toLowerCase().startsWith(currentWord.toLowerCase())
     ).slice(0, 12)
-    
+
     return matches
   } catch (error) {
     console.error('更新文件补全失败:', error)
-    return getCurrentDirectoryFiles().filter(file => 
+    return getCurrentDirectoryFiles().filter(file =>
       file.text.toLowerCase().startsWith(currentWord.toLowerCase())
     ).slice(0, 12)
   }
@@ -1218,12 +1514,12 @@ watch(() => props.configId, async (newConfigId, oldConfigId) => {
   if (newConfigId && newConfigId !== oldConfigId) {
     // 清空终端
     terminalLines.value = []
-    
+
     // 重置状态
     currentCommand.value = ''
     commandHistory.value = []
     historyIndex.value = -1
-    
+
     // 建立新连接
     await connectSSH()
   }
@@ -1260,10 +1556,10 @@ function stopSessionTimer() {
 
 onMounted(() => {
   // 聚焦输入框
-  if (commandInput.value) {
+  if (!useInteractiveMode.value && commandInput.value) {
     commandInput.value.focus()
   }
-  
+
   // 如果有配置ID，立即连接
   if (props.configId) {
     connectSSH()
@@ -1273,11 +1569,21 @@ onMounted(() => {
 onUnmounted(() => {
   // 停止会话计时器
   stopSessionTimer()
-  
+
+  // 销毁交互式终端
+  destroyXterm()
+
   // 断开SSH连接
   if (connectionStatus.value === 'connected') {
     disconnectSSH()
   }
+})
+
+// 监听终端模式变化
+watch(useInteractiveMode, (newMode) => {
+  statusText.value = connectionStatus.value === 'connected'
+    ? (newMode ? '已连接 (交互模式)' : '已连接 (简单模式)')
+    : statusText.value
 })
 </script>
 
@@ -1326,6 +1632,20 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   position: relative;
+}
+
+.xterm-container {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+}
+
+.simple-terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .terminal-output {
@@ -1466,8 +1786,16 @@ onUnmounted(() => {
 }
 
 @keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* 补全弹窗样式 */
@@ -1695,8 +2023,15 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .status-text {
@@ -1755,24 +2090,24 @@ onUnmounted(() => {
   .terminal-header {
     padding: 6px 10px;
   }
-  
+
   .terminal-output {
     padding: 10px 12px;
     font-size: 12px;
   }
-  
+
   .terminal-input-line {
     padding: 8px 12px;
   }
-  
+
   .command-input {
     font-size: 12px;
   }
-  
+
   .completions-popup {
     max-height: 200px;
   }
-  
+
   .completion-item {
     padding: 6px 10px;
   }

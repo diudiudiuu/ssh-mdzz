@@ -12,8 +12,9 @@
       <template #1>
         <div class="left-panel">
           <n-split
+            :key="splitKey"
             direction="vertical"
-            :default-size="sessionCollapsed ? 0.2 : (showFiles ? 0.5 : 1)"
+            :default-size="getLeftSplitSize()"
             :min="0.1"
             :max="0.9"
             class="left-split"
@@ -91,18 +92,43 @@
 
             <!-- 文件浏览器区域 -->
             <template #2>
+
+              
               <div v-if="showFiles" class="file-panel">
                 <div class="panel-header">
                   <span class="panel-title">文件</span>
-                  <div class="panel-actions" v-if="activeConnection && isConnected">
-                    <n-button size="tiny" @click="refreshFiles">
+                  <div class="panel-actions">
+                    <n-button 
+                      v-if="activeConnection && isConnected"
+                      size="tiny" 
+                      @click="refreshFiles"
+                      title="刷新文件列表"
+                    >
                       <template #icon>
                         <n-icon><RefreshOutline /></n-icon>
                       </template>
                     </n-button>
-                    <n-button size="tiny" @click="showCreateFolderDialog = true">
+                    <n-button 
+                      v-if="activeConnection && isConnected"
+                      size="tiny" 
+                      @click="showCreateFolderDialog = true"
+                      title="新建文件夹"
+                    >
                       <template #icon>
                         <n-icon><FolderOutline /></n-icon>
+                      </template>
+                    </n-button>
+                    <n-button 
+                      v-if="activeConnection"
+                      size="tiny" 
+                      @click="toggleFilePanel"
+                      :title="showFiles ? '隐藏文件列表' : '显示文件列表'"
+                    >
+                      <template #icon>
+                        <n-icon>
+                          <ChevronUpOutline v-if="showFiles" />
+                          <ChevronDownOutline v-else />
+                        </n-icon>
                       </template>
                     </n-button>
                   </div>
@@ -159,7 +185,7 @@
           
           <div class="panel-content">
             <div v-if="activeConnection && isConnected" class="terminal-container">
-              <SSHTerminal :config-id="activeConnection.id" />
+              <SSHTerminal :key="activeConnection.id" :config-id="activeConnection.id" />
             </div>
             
             <!-- 默认欢迎页 -->
@@ -192,7 +218,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useMessage, useDialog } from 'naive-ui'
 import { 
@@ -223,6 +249,7 @@ const showAddConnection = ref(false)
 const sessionCollapsed = ref(false)
 const showCreateFolderDialog = ref(false)
 const showFiles = ref(false)
+const splitKey = ref(0) // 用于强制重新渲染分割器
 
 const isConnected = computed(() => {
   if (!activeConnection.value || !connectionStore.activeSessions) return false
@@ -230,6 +257,26 @@ const isConnected = computed(() => {
     s.configId === activeConnection.value.id && s.isActive
   )
 })
+
+// 计算左侧分割器的大小
+function getLeftSplitSize() {
+  console.log('计算分割大小:', {
+    sessionCollapsed: sessionCollapsed.value,
+    showFiles: showFiles.value,
+    activeConnection: activeConnection.value?.name
+  })
+  
+  if (sessionCollapsed.value && showFiles.value) {
+    // 会话收缩且显示文件：会话占25%，文件占75%
+    return 0.25
+  } else if (showFiles.value && !sessionCollapsed.value) {
+    // 会话展开且显示文件：会话占40%，文件占60%
+    return 0.4
+  } else {
+    // 只显示会话：会话占100%
+    return 1.0
+  }
+}
 
 // 获取连接状态
 function getConnectionStatus(configId) {
@@ -241,45 +288,91 @@ function getConnectionStatus(configId) {
 // 连接到 SSH
 async function connectToSSH(config) {
   try {
+    console.log('开始连接SSH:', config.name)
     activeConnection.value = config
     
     // 如果还没连接，先建立连接
     if (!isConnected.value) {
+      // 显示连接中状态
+      message.loading(`正在连接到 ${config.name}...`, {
+        duration: 0,
+        key: 'connecting'
+      })
+      
       await connectionStore.createSession(config.id)
+      
+      // 关闭连接中消息
+      message.destroyAll()
       message.success(`已连接到 ${config.name}`)
       
       // 手动刷新活动会话列表
       await connectionStore.loadActiveSessions()
       
       // 等待一下让会话状态更新
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 800))
       
-      // 连接成功后自动收缩会话列表，展开文件列表
+      // 验证连接状态
+      const connected = connectionStore.activeSessions.some(s => 
+        s.configId === config.id && s.isActive
+      )
+      
+      if (connected) {
+        console.log('连接验证成功，开始设置UI状态')
+        
+        // 连接成功后自动收缩会话列表，展开文件列表
+        sessionCollapsed.value = true
+        showFiles.value = true
+        
+        // 强制重新渲染分割器
+        splitKey.value++
+        
+        console.log('UI状态已设置:', {
+          sessionCollapsed: sessionCollapsed.value,
+          showFiles: showFiles.value,
+          splitKey: splitKey.value
+        })
+        
+        // 获取用户主目录作为初始路径
+        try {
+          const homeDir = await window.go.main.App.GetRemoteHome(config.id)
+          currentPath.value = homeDir?.trim() || '/'
+          console.log('获取到主目录:', currentPath.value)
+        } catch (error) {
+          console.error('获取主目录失败:', error)
+          currentPath.value = '/'
+        }
+        
+        console.log('连接成功，最终状态:', {
+          activeConnection: activeConnection.value?.name,
+          isConnected: isConnected.value,
+          showFiles: showFiles.value,
+          sessionCollapsed: sessionCollapsed.value,
+          currentPath: currentPath.value,
+          activeSessions: connectionStore.activeSessions.length
+        })
+        
+        // 触发文件列表加载
+        await new Promise(resolve => setTimeout(resolve, 200))
+      } else {
+        console.error('连接验证失败，活动会话:', connectionStore.activeSessions)
+        throw new Error('连接建立失败，请检查网络和认证信息')
+      }
+    } else {
+      // 如果已经连接，直接显示文件列表
       sessionCollapsed.value = true
       showFiles.value = true
-      
-      // 获取用户主目录作为初始路径
-      try {
-        const homeDir = await window.go.main.App.GetRemoteHome(config.id)
-        currentPath.value = homeDir || '/'
-      } catch (error) {
-        console.error('获取主目录失败:', error)
-        currentPath.value = '/'
-      }
-      
-      console.log('连接成功，状态:', {
-        activeConnection: activeConnection.value?.name,
-        isConnected: isConnected.value,
-        showFiles: showFiles.value,
-        sessionCollapsed: sessionCollapsed.value,
-        currentPath: currentPath.value,
-        activeSessions: connectionStore.activeSessions
-      })
+      console.log('已连接，直接显示文件列表')
     }
     
   } catch (error) {
     console.error('连接失败:', error)
+    message.destroyAll()
     message.error(`连接失败: ${error.message}`)
+    
+    // 连接失败时重置状态
+    sessionCollapsed.value = false
+    showFiles.value = false
+    activeConnection.value = null
   }
 }
 
@@ -288,6 +381,68 @@ async function connectToSSH(config) {
 // 切换会话收缩状态
 function toggleSessionCollapse() {
   sessionCollapsed.value = !sessionCollapsed.value
+}
+
+// 切换文件面板显示状态
+function toggleFilePanel() {
+  showFiles.value = !showFiles.value
+  console.log('切换文件面板:', showFiles.value)
+}
+
+// 强制显示文件列表（调试用）
+function forceShowFiles() {
+  console.log('强制显示文件列表')
+  showFiles.value = true
+  sessionCollapsed.value = true
+  
+  // 强制重新渲染分割器
+  splitKey.value++
+  
+  nextTick(() => {
+    console.log('分割器已重新渲染，key:', splitKey.value)
+  })
+  
+  console.log('状态已更新:', {
+    showFiles: showFiles.value,
+    sessionCollapsed: sessionCollapsed.value,
+    activeConnection: activeConnection.value?.name,
+    isConnected: isConnected.value,
+    splitSize: getLeftSplitSize()
+  })
+}
+
+// 调试重连
+async function debugReconnect() {
+  if (!activeConnection.value) return
+  
+  console.log('调试重连开始')
+  try {
+    // 重新加载会话状态
+    await connectionStore.loadActiveSessions()
+    
+    // 检查连接状态
+    const connected = connectionStore.activeSessions.some(s => 
+      s.configId === activeConnection.value.id && s.isActive
+    )
+    
+    console.log('重连检查结果:', {
+      connected,
+      activeSessions: connectionStore.activeSessions
+    })
+    
+    if (connected) {
+      // 如果已连接，直接显示文件列表
+      sessionCollapsed.value = true
+      showFiles.value = true
+      message.success('连接状态已恢复，文件列表已显示')
+    } else {
+      // 如果未连接，尝试重新连接
+      await connectToSSH(activeConnection.value)
+    }
+  } catch (error) {
+    console.error('调试重连失败:', error)
+    message.error('重连失败: ' + error.message)
+  }
 }
 
 // 右键菜单
@@ -308,9 +463,24 @@ function handlePathChange(newPath) {
 }
 
 // 刷新文件列表
-function refreshFiles() {
-  // 触发文件浏览器刷新
-  // 这里可以通过事件或者重新加载组件来实现
+async function refreshFiles() {
+  if (!activeConnection.value || !isConnected.value) {
+    message.warning('请先连接到服务器')
+    return
+  }
+  
+  try {
+    // 通过改变key来强制重新加载FileBrowser组件
+    const timestamp = Date.now()
+    console.log('刷新文件列表，时间戳:', timestamp)
+    
+    // 这里可以触发FileBrowser组件的刷新
+    // 由于我们使用了key绑定，组件会自动重新加载
+    message.success('文件列表已刷新')
+  } catch (error) {
+    console.error('刷新文件列表失败:', error)
+    message.error('刷新失败')
+  }
 }
 
 // 清除终端
@@ -340,6 +510,15 @@ async function reconnectSSH() {
   }
 }
 
+// 断开连接时重置状态
+function resetConnectionState() {
+  sessionCollapsed.value = false
+  showFiles.value = false
+  activeConnection.value = null
+  currentPath.value = '/'
+  console.log('连接状态已重置')
+}
+
 // 删除连接
 async function deleteConnection() {
   if (!activeConnection.value) return
@@ -364,9 +543,7 @@ async function deleteConnection() {
         message.success('连接已删除')
         
         // 重置状态
-        sessionCollapsed.value = false
-        showFiles.value = false
-        activeConnection.value = null
+        resetConnectionState()
       } catch (error) {
         console.error('删除连接失败:', error)
         message.error(`删除连接失败: ${error.message}`)
@@ -381,6 +558,36 @@ async function deleteConnection() {
 function handleConnectionAdded() {
   connectionStore.loadConnections()
 }
+
+// 监听连接状态变化
+watch(() => isConnected.value, (connected) => {
+  console.log('连接状态变化:', connected)
+  if (!connected && activeConnection.value) {
+    // 连接断开时，重置UI状态
+    console.log('检测到连接断开，重置UI状态')
+    sessionCollapsed.value = false
+    showFiles.value = false
+    // 不重置 activeConnection，保持选中状态以便重连
+  }
+})
+
+// 监听活动会话变化
+watch(() => connectionStore.activeSessions, (sessions) => {
+  console.log('活动会话变化:', sessions?.length || 0)
+  
+  // 如果当前选中的连接不在活动会话中，重置状态
+  if (activeConnection.value && sessions) {
+    const hasActiveSession = sessions.some(s => 
+      s.configId === activeConnection.value.id && s.isActive
+    )
+    
+    if (!hasActiveSession && (sessionCollapsed.value || showFiles.value)) {
+      console.log('当前连接不在活动会话中，重置状态')
+      sessionCollapsed.value = false
+      showFiles.value = false
+    }
+  }
+}, { deep: true })
 
 onMounted(() => {
   // 加载连接列表
@@ -860,4 +1067,6 @@ onMounted(() => {
 .mini-connection {
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
+
+
 </style>

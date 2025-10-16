@@ -550,16 +550,17 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-secondary);
 }
 
 .path-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  border-bottom: 1px solid #ddd;
-  background: #f8f9fa;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
 }
 
 .path-display {
@@ -570,12 +571,18 @@ onMounted(() => {
 
 .current-path {
   font-size: 11px;
-  color: #333;
-  font-family: monospace;
-  background: #fff;
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  background: var(--bg-secondary);
   padding: 4px 8px;
-  border-radius: 3px;
-  border: 1px solid #ccc;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
+
+.current-path:hover {
+  border-color: var(--primary-color);
+  background: var(--bg-elevated);
 }
 
 .toolbar-right {
@@ -595,12 +602,12 @@ onMounted(() => {
   overflow: auto;
   position: relative;
   padding: 0;
-  background: #fff;
+  background: var(--bg-secondary);
 }
 
 .file-list-container.drag-over {
-  background: #e6f3ff;
-  border: 2px dashed #0078d4;
+  background: rgba(24, 160, 88, 0.1);
+  border: 2px dashed var(--primary-color);
 }
 
 .file-list {
@@ -611,16 +618,35 @@ onMounted(() => {
 .file-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   cursor: pointer;
-  transition: background-color 0.2s;
-  border-bottom: 1px solid #f0f0f0;
-  min-height: 32px;
+  transition: all var(--transition-normal);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 36px;
+  position: relative;
+}
+
+.file-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+  pointer-events: none;
 }
 
 .file-item:hover {
-  background: #e6f3ff;
+  background: var(--bg-elevated);
+  transform: translateX(2px);
+}
+
+.file-item:hover::before {
+  background: linear-gradient(135deg, rgba(24, 160, 88, 0.1) 0%, rgba(24, 160, 88, 0.05) 100%);
 }
 
 .file-item:last-child {
@@ -628,12 +654,14 @@ onMounted(() => {
 }
 
 .parent-dir {
-  font-weight: 500;
+  font-weight: 600;
+  border-left: 3px solid var(--primary-color);
+  background: rgba(24, 160, 88, 0.05);
 }
 
 .parent-dir .file-name {
-  color: #666;
-  font-weight: bold;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 .file-icon {
@@ -652,22 +680,28 @@ onMounted(() => {
 }
 
 .file-name {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
   font-weight: 500;
+  transition: color var(--transition-normal);
+}
+
+.file-item:hover .file-name {
+  color: var(--primary-color);
 }
 
 .file-details {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 11px;
-  color: #666;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
   flex-shrink: 0;
+  font-family: var(--font-family-mono);
 }
 
 .file-size {
@@ -686,22 +720,30 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 120, 212, 0.1);
+  background: rgba(24, 160, 88, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-lg);
 }
 
 .drag-content {
   text-align: center;
-  color: #0078d4;
+  color: var(--primary-color);
+  background: var(--bg-secondary);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-xl);
+  border: 2px dashed var(--primary-color);
+  box-shadow: var(--shadow-lg);
 }
 
 .drag-content p {
   margin: 12px 0 0;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* 滚动条样式 */
@@ -710,15 +752,40 @@ onMounted(() => {
 }
 
 .file-list-container::-webkit-scrollbar-track {
-  background: #f1f3f4;
+  background: transparent;
+  border-radius: var(--radius-sm);
 }
 
 .file-list-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-normal);
 }
 
 .file-list-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 文件图标动画 */
+.file-icon {
+  transition: all var(--transition-normal);
+}
+
+.file-item:hover .file-icon {
+  transform: scale(1.1);
+}
+
+/* 空状态样式 */
+:deep(.n-empty) {
+  color: var(--text-secondary);
+}
+
+:deep(.n-empty .n-empty__icon) {
+  color: var(--text-tertiary);
+}
+
+/* 加载状态样式 */
+:deep(.n-spin) {
+  color: var(--primary-color);
 }
 </style>

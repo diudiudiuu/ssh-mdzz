@@ -1,5 +1,6 @@
-# SSH - MDZZ 码滴织造
+# SSH - MDZZ 
 
+vibe coding 仅供娱乐
 免费，只针对正常shell脚本，上传文件等操作
 
 ## 🚀 主要特性
